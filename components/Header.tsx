@@ -25,9 +25,10 @@ interface HeaderProps {
   onLoginClick: () => void;
   onSignUpClick: () => void;
   onLogout: () => void;
+  onDashboardClick?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ isLoggedIn, onLoginClick, onSignUpClick, onLogout }) => {
+const Header: React.FC<HeaderProps> = ({ isLoggedIn, onLoginClick, onSignUpClick, onLogout, onDashboardClick }) => {
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
@@ -59,9 +60,16 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, onLoginClick, onSignUpClick
         )}
         <div className="flex items-center space-x-4">
             {isLoggedIn ? (
-                <button onClick={onLogout} className="bg-dark-card border border-dark-card-border text-light-text font-medium py-2 px-5 rounded-md hover:bg-white/5 transition-colors">
-                    Logout
-                </button>
+                <>
+                    {onDashboardClick && (
+                        <button onClick={onDashboardClick} className="bg-brand-orange text-white font-bold py-2 px-5 rounded-md hover:opacity-90 transition-opacity shadow-md shadow-brand-orange/20">
+                            Dashboard
+                        </button>
+                    )}
+                    <button onClick={onLogout} className="bg-dark-card border border-dark-card-border text-light-text font-medium py-2 px-5 rounded-md hover:bg-white/5 transition-colors">
+                        Logout
+                    </button>
+                </>
             ) : (
                 <>
                     <button onClick={onLoginClick} className="text-light-text font-medium py-2 px-5 rounded-md hover:bg-white/5 transition-colors">

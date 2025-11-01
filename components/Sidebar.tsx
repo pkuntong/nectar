@@ -3,6 +3,7 @@ import React from 'react';
 interface SidebarProps {
   activeItem: string;
   onItemClick: (item: string) => void;
+  onLogoClick?: () => void;
 }
 
 const SidebarItem: React.FC<{
@@ -20,10 +21,13 @@ const SidebarItem: React.FC<{
   </button>
 );
 
-const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, onLogoClick }) => {
   return (
     <aside className="w-64 bg-dark-bg border-r border-dark-card-border p-6 flex-col hidden md:flex">
-      <div className="flex items-center space-x-3 mb-10">
+      <button 
+        onClick={onLogoClick || (() => window.location.href = '/')}
+        className="flex items-center space-x-3 mb-10 hover:opacity-80 transition-opacity"
+      >
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="url(#paint0_linear_logo_sidebar)"/>
           <path d="M2 17L12 22L22 17L12 12L2 17Z" fill="url(#paint1_linear_logo_sidebar)"/>
@@ -39,7 +43,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick }) => {
           </defs>
         </svg>
         <span className="font-bold text-2xl text-light-text tracking-wide">Nectar</span>
-      </div>
+      </button>
       
       <nav className="flex-grow space-y-2">
         <SidebarItem

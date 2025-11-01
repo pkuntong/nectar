@@ -1,3 +1,8 @@
+import { initSentry } from './lib/sentry';
+import * as Sentry from '@sentry/react';
+
+// Initialize Sentry before anything else
+initSentry();
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
@@ -11,6 +16,8 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App />
+    <Sentry.ErrorBoundary fallback={<div>Something went wrong</div>} showDialog>
+      <App />
+    </Sentry.ErrorBoundary>
   </React.StrictMode>
 );

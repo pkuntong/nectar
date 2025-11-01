@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 
 interface Hustle {
@@ -24,6 +24,33 @@ const DashboardDemo: React.FC<DashboardDemoProps> = ({ onSignUpClick }) => {
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<Hustle[]>([]);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [savedHustles, setSavedHustles] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    // Load saved hustles from localStorage on mount
+    const saved = localStorage.getItem('nectar_saved_hustles');
+    if (saved) {
+      try {
+        const savedArray = JSON.parse(saved);
+        setSavedHustles(new Set(savedArray));
+      } catch (e) {
+        console.error('Error loading saved hustles:', e);
+      }
+    }
+  }, []);
+
+  const handleSaveHustle = (hustle: Hustle) => {
+    const saved = new Set(savedHustles);
+    if (saved.has(hustle.hustleName)) {
+      saved.delete(hustle.hustleName);
+      alert(`${hustle.hustleName} removed from saved hustles`);
+    } else {
+      saved.add(hustle.hustleName);
+      alert(`${hustle.hustleName} saved! View it in "My Hustles".`);
+    }
+    setSavedHustles(saved);
+    localStorage.setItem('nectar_saved_hustles', JSON.stringify(Array.from(saved)));
+  };
 
   const handleCopyToClipboard = (hustle: Hustle, index: number) => {
     const textToCopy = `
@@ -191,22 +218,40 @@ Learn More: ${hustle.learnMoreLink}
               <div key={index} className="bg-dark-bg p-6 rounded-xl shadow-md border border-dark-card-border hover:shadow-brand-orange/10 transition-all duration-300 transform hover:-translate-y-1">
                   <div className="flex justify-between items-start mb-2">
                       <h3 className="font-bold text-xl text-light-text pr-4">{hustle.hustleName}</h3>
-                      <button
-                          onClick={() => handleCopyToClipboard(hustle, index)}
-                          className="flex-shrink-0 flex items-center space-x-1.5 text-sm py-1 px-3 rounded-md transition-colors duration-200 border border-dark-card-border text-medium-text hover:border-light-text hover:text-light-text"
-                      >
-                          {copiedIndex === index ? (
-                              <>
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                                  <span className="text-green-400 font-medium">Copied!</span>
-                              </>
-                          ) : (
-                              <>
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                                  <span>Copy</span>
-                              </>
-                          )}
-                      </button>
+                      <div className="flex space-x-2">
+                          <button
+                              onClick={() => handleSaveHustle(hustle)}
+                              className="flex-shrink-0 flex items-center space-x-1.5 text-sm py-1 px-3 rounded-md transition-colors duration-200 border border-dark-card-border text-medium-text hover:border-brand-orange hover:text-brand-orange-light"
+                          >
+                              {savedHustles.has(hustle.hustleName) ? (
+                                  <>
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-brand-orange" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                                      <span>Saved</span>
+                                  </>
+                              ) : (
+                                  <>
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+                                      <span>Save</span>
+                                  </>
+                              )}
+                          </button>
+                          <button
+                              onClick={() => handleCopyToClipboard(hustle, index)}
+                              className="flex-shrink-0 flex items-center space-x-1.5 text-sm py-1 px-3 rounded-md transition-colors duration-200 border border-dark-card-border text-medium-text hover:border-light-text hover:text-light-text"
+                          >
+                              {copiedIndex === index ? (
+                                  <>
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                      <span className="text-green-400 font-medium">Copied!</span>
+                                  </>
+                              ) : (
+                                  <>
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                      <span>Copy</span>
+                                  </>
+                              )}
+                          </button>
+                      </div>
                   </div>
                 <p className="text-medium-text mb-4">{hustle.description}</p>
                  <div className="border-t border-dark-card-border/50 my-4 py-4">
