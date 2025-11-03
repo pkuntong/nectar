@@ -1,4 +1,11 @@
-// Follow this setup guide: https://supabase.com/docs/guides/functions
+COPY THIS EXACT CODE TO SUPABASE DASHBOARD
+=============================================
+
+Function Name: create-checkout-session
+
+CODE (copy everything below):
+=============================================
+
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.21.0'
@@ -15,29 +22,15 @@ serve(async (req) => {
   }
 
   try {
-    // Check for required environment variables
-    const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
-    if (!stripeSecretKey) {
-      throw new Error('STRIPE_SECRET_KEY environment variable is not set. Please add it in the Edge Function secrets.');
-    }
-
-    // Get Supabase environment variables (Supabase provides these automatically)
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || Deno.env.get('PROJECT_URL');
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('ANON_KEY');
-    
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error(`Missing Supabase configuration: SUPABASE_URL=${!!supabaseUrl}, SUPABASE_ANON_KEY=${!!supabaseAnonKey}`);
-    }
-
     // Get Stripe instance
-    const stripe = new Stripe(stripeSecretKey, {
+    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
       apiVersion: '2023-10-16',
     })
 
     // Get Supabase client
     const supabaseClient = createClient(
-      supabaseUrl,
-      supabaseAnonKey,
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
           headers: { Authorization: req.headers.get('Authorization')! },
@@ -91,11 +84,6 @@ serve(async (req) => {
         .eq('id', user.id)
     }
 
-    // Fetch price to determine if it's recurring (subscription) or one-time (payment)
-    const price = await stripe.prices.retrieve(priceId);
-    const isRecurring = price.recurring !== null;
-    const mode = isRecurring ? 'subscription' : 'payment';
-
     // Create checkout session
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -105,7 +93,7 @@ serve(async (req) => {
           quantity: 1,
         },
       ],
-      mode: mode,
+      mode: priceId.includes('month') || priceId.includes('year') ? 'subscription' : 'payment',
       success_url: successUrl || `${req.headers.get('origin')}/dashboard?success=true`,
       cancel_url: cancelUrl || `${req.headers.get('origin')}/pricing?canceled=true`,
       metadata: {
@@ -121,13 +109,8 @@ serve(async (req) => {
       }
     )
   } catch (error) {
-    console.error('Edge Function error:', error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
     return new Response(
-      JSON.stringify({ 
-        error: errorMessage,
-        details: error instanceof Error ? error.stack : undefined
-      }),
+      JSON.stringify({ error: error.message }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
@@ -135,3 +118,21 @@ serve(async (req) => {
     )
   }
 })
+
+=============================================
+END OF CODE
+=============================================
+
+AFTER DEPLOYING:
+
+1. Go to the function settings
+2. Add these secrets:
+   - STRIPE_SECRET_KEY = sk_test_51SNkuTDPosqqbsKxvKKhuZ93OE3RKnBc5rbIY5w80QVWmQs4jw7SBXBTuprzDHLo0sv4V6hdL2ejLQk6n8KW5J3g00JrMMlWok
+   - SUPABASE_URL = https://bbzuoynbdzutgslcvyqw.supabase.co
+   - SUPABASE_ANON_KEY = (get from your .env file)
+
+3. Click Save
+
+4. Refresh your app and try the pricing button again
+
+The CORS error will be gone!

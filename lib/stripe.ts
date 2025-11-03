@@ -17,29 +17,60 @@ export const STRIPE_PRICES = {
 
 export const createCheckoutSession = async (priceId: string) => {
   try {
+    console.log('createCheckoutSession called with priceId:', priceId);
+
     // Get the current user's session token
     const { data: { session } } = await supabase.auth.getSession();
+    console.log('User session:', session?.user?.id);
 
     if (!session) {
       throw new Error('User not authenticated');
     }
 
-    // Call Supabase Edge Function to create checkout session
-    const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-      body: {
+    console.log('Invoking create-checkout-session Edge Function...');
+
+    // Get Supabase URL for function endpoint
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+    // Make direct fetch call to get actual error response body
+    const functionUrl = `${supabaseUrl}/functions/v1/create-checkout-session`;
+    const response = await fetch(functionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+      },
+      body: JSON.stringify({
         priceId,
         successUrl: `${window.location.origin}/dashboard?success=true`,
         cancelUrl: `${window.location.origin}/pricing?canceled=true`,
-      },
+      }),
     });
 
-    if (error) {
-      throw error;
+    const responseData = await response.json();
+    console.log('Edge Function response:', { status: response.status, data: responseData });
+
+    if (!response.ok) {
+      // Extract actual error message from response body
+      const errorMessage = responseData?.error || responseData?.message || `HTTP ${response.status}: ${response.statusText}`;
+      console.error('Edge Function error:', errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    // Check if response contains error field (shouldn't happen if response.ok, but just in case)
+    if (responseData.error) {
+      console.error('Edge Function returned error in data:', responseData.error);
+      throw new Error(responseData.error);
+    }
+
+    if (!responseData.url) {
+      throw new Error('No checkout URL returned from Edge Function. Check function logs for details.');
     }
 
     return {
-      sessionId: data.sessionId,
-      url: data.url,
+      sessionId: responseData.sessionId,
+      url: responseData.url,
       error: null
     };
   } catch (error: any) {
@@ -47,7 +78,7 @@ export const createCheckoutSession = async (priceId: string) => {
     return {
       sessionId: null,
       url: null,
-      error: error.message || 'Failed to create checkout session'
+      error: error.message || 'Failed to create checkout session. Please ensure Edge Functions are deployed to Supabase.'
     };
   }
 };

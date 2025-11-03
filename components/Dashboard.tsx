@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { createCheckoutSession, STRIPE_PRICES } from '../lib/stripe';
 import Sidebar from './Sidebar';
 import DashboardHeader from './DashboardHeader';
 import DashboardDemo from './DashboardDemo';
 import FAQ from './FAQ'; // Import the FAQ component
+import Pricing from './Pricing';
 
 const DashboardHome: React.FC = () => (
     <div className="p-8 animate-fade-in-up">
@@ -96,9 +98,11 @@ const SettingsContent: React.FC<{ onProfileUpdate?: () => void }> = ({ onProfile
     const [notifications, setNotifications] = useState({ weekly: true, product: false, offers: true });
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
+    const [subscriptionTier, setSubscriptionTier] = useState<string>('free');
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState(false);
+    const [upgrading, setUpgrading] = useState(false);
 
     useEffect(() => {
         // Load user profile on mount
@@ -111,6 +115,17 @@ const SettingsContent: React.FC<{ onProfileUpdate?: () => void }> = ({ onProfile
             if (user) {
                 setEmail(user.email || '');
                 setFullName(user.user_metadata?.full_name || user.email?.split('@')[0] || '');
+                
+                // Load subscription tier
+                const { data: profile } = await supabase
+                    .from('user_profiles')
+                    .select('subscription_tier')
+                    .eq('id', user.id)
+                    .single();
+                
+                if (profile?.subscription_tier) {
+                    setSubscriptionTier(profile.subscription_tier);
+                }
             }
         } catch (error) {
             console.error('Error loading profile:', error);
@@ -186,6 +201,27 @@ const SettingsContent: React.FC<{ onProfileUpdate?: () => void }> = ({ onProfile
         setNotifications(prev => ({...prev, [key]: !prev[key]}));
     };
 
+    const handleUpgrade = async () => {
+        setUpgrading(true);
+        try {
+            const priceId = STRIPE_PRICES.entrepreneur;
+            const result = await createCheckoutSession(priceId);
+
+            if (result.error) {
+                alert(`Error: ${result.error}`);
+            } else if (result.url) {
+                // Redirect to Stripe checkout
+                window.location.href = result.url;
+            } else {
+                alert('Error: Could not create checkout session. Please try again.');
+            }
+        } catch (error: any) {
+            alert(`Error: ${error.message || 'Failed to start checkout'}`);
+        } finally {
+            setUpgrading(false);
+        }
+    };
+
     return (
         <div className="p-8 animate-fade-in-up">
             <h2 className="text-3xl font-bold text-light-text mb-8">Settings</h2>
@@ -256,6 +292,49 @@ const SettingsContent: React.FC<{ onProfileUpdate?: () => void }> = ({ onProfile
                                 <span className={`inline-block w-5 h-5 bg-white rounded-full transform transition-transform ${notifications.offers ? 'translate-x-6' : 'translate-x-1'}`} />
                             </button>
                         </div>
+                    </div>
+                </div>
+
+                {/* Subscription & Billing */}
+                <div className="bg-dark-card border border-dark-card-border p-6 rounded-lg">
+                    <h3 className="text-xl font-bold text-light-text mb-4">Subscription & Billing</h3>
+                    <div className="space-y-4">
+                        <div>
+                            <p className="text-medium-text mb-2">Current Plan</p>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className={`text-2xl font-bold ${subscriptionTier === 'entrepreneur' ? 'text-brand-orange' : 'text-light-text'}`}>
+                                        {subscriptionTier === 'entrepreneur' ? 'Entrepreneur Plan' : 'Free (Hustler) Plan'}
+                                    </p>
+                                    {subscriptionTier === 'entrepreneur' && (
+                                        <p className="text-sm text-green-400 mt-1">Unlimited access to all features</p>
+                                    )}
+                                    {subscriptionTier === 'free' && (
+                                        <p className="text-sm text-medium-text mt-1">Limited features • Upgrade for unlimited access</p>
+                                    )}
+                                </div>
+                                {subscriptionTier === 'free' && (
+                                    <button
+                                        onClick={handleUpgrade}
+                                        disabled={upgrading}
+                                        className="bg-brand-orange text-white font-bold py-3 px-6 rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {upgrading ? 'Starting Checkout...' : 'Upgrade Now'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        {subscriptionTier === 'entrepreneur' && (
+                            <div className="pt-4 border-t border-dark-card-border">
+                                <p className="text-sm text-medium-text mb-3">Manage your subscription</p>
+                                <button 
+                                    onClick={() => alert('Subscription management coming soon! Contact support for any changes.')}
+                                    className="text-medium-text hover:text-light-text text-sm font-medium underline"
+                                >
+                                    Manage Subscription
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -633,10 +712,54 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToHome }) => 
   const [activeView, setActiveView] = useState('dashboard');
   const [userName, setUserName] = useState('User');
   const [, setRefreshKey] = useState(0);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showPendingMessage, setShowPendingMessage] = useState(false);
+  const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
 
   useEffect(() => {
     // Load user name on mount
     loadUserName();
+  }, []);
+
+  // Handle successful payment redirect
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+
+    if (searchParams.get('success') === 'true') {
+      setIsVerifyingPayment(true);
+
+      // Wait a moment for webhook to process, then check subscription status
+      setTimeout(async () => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data: profile } = await supabase
+              .from('user_profiles')
+              .select('subscription_tier')
+              .eq('id', user.id)
+              .single();
+
+            if (profile?.subscription_tier === 'entrepreneur') {
+              // Success! Subscription has been upgraded
+              setShowSuccessMessage(true);
+              // Hide success message after 10 seconds
+              setTimeout(() => setShowSuccessMessage(false), 10000);
+            } else {
+              // Webhook might still be processing
+              setShowPendingMessage(true);
+              // Hide pending message after 15 seconds
+              setTimeout(() => setShowPendingMessage(false), 15000);
+            }
+          }
+        } catch (error) {
+          console.error('Error verifying payment:', error);
+        } finally {
+          setIsVerifyingPayment(false);
+          // Clean up URL
+          window.history.replaceState({}, '', '/dashboard');
+        }
+      }, 2000); // Wait 2 seconds for webhook to process
+    }
   }, []);
 
   const loadUserName = async () => {
@@ -673,6 +796,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToHome }) => 
         return <MyHustles />;
       case 'community':
         return <CommunityContent />;
+      case 'pricing':
+        return <div className="p-8"><Pricing /></div>;
       case 'settings':
         return <SettingsContent onProfileUpdate={handleProfileUpdate} />;
       case 'help':
@@ -691,6 +816,61 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToHome }) => 
           {renderContent()}
         </main>
       </div>
+
+      {/* Payment Verification Loading */}
+      {isVerifyingPayment && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-dark-card border border-dark-card-border rounded-lg p-6 max-w-md">
+            <div className="flex items-center gap-3">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange"></div>
+              <div>
+                <h3 className="text-lg font-bold text-light-text">Verifying Payment</h3>
+                <p className="text-medium-text text-sm">Please wait while we confirm your upgrade...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Message */}
+      {showSuccessMessage && (
+        <div className="fixed top-4 right-4 bg-green-500 text-white p-4 rounded-lg shadow-lg z-50 animate-fade-in-up max-w-md">
+          <div className="flex items-start gap-3">
+            <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+            </svg>
+            <div>
+              <h4 className="font-bold">Upgrade Successful!</h4>
+              <p className="text-sm mt-1">Welcome to the Entrepreneur tier! You now have unlimited generations.</p>
+            </div>
+            <button onClick={() => setShowSuccessMessage(false)} className="ml-4">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Pending Message */}
+      {showPendingMessage && (
+        <div className="fixed top-4 right-4 bg-yellow-500 text-white p-4 rounded-lg shadow-lg z-50 animate-fade-in-up max-w-md">
+          <div className="flex items-start gap-3">
+            <svg className="w-6 h-6 flex-shrink-0 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <div>
+              <h4 className="font-bold">Payment Processing</h4>
+              <p className="text-sm mt-1">Your payment is being processed. Your account will be upgraded shortly. Please refresh in a moment.</p>
+            </div>
+            <button onClick={() => setShowPendingMessage(false)} className="ml-4">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

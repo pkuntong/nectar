@@ -30,12 +30,16 @@ export default defineConfig(({ mode }) => {
               // Vendor chunks for better caching
               'vendor-react': ['react', 'react-dom'],
               'vendor-supabase': ['@supabase/supabase-js'],
-              'vendor-stripe': ['@stripe/stripe-js'],
               'vendor-genai': ['@google/genai'],
+              // Don't split Stripe - it needs its locale files together
             }
           }
         },
         chunkSizeWarningLimit: 1000,
+        commonjsOptions: {
+          // Help with Stripe's CommonJS modules
+          transformMixedEsModules: true
+        }
       },
       resolve: {
         alias: {

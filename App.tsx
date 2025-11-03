@@ -172,7 +172,10 @@ function App() {
               />
               <HowItWorks />
               <Features />
-              <DashboardDemo onSignUpClick={() => setActiveModal('signup')} />
+              <DashboardDemo
+                onSignUpClick={() => setActiveModal('signup')}
+                onPricingClick={() => handleInfoClick('pricing')}
+              />
               <Testimonials />
               <FAQ />
             </main>
@@ -197,7 +200,10 @@ function App() {
           />
           <HowItWorks />
           <Features />
-          <DashboardDemo onSignUpClick={() => setActiveModal('signup')} />
+          <DashboardDemo
+            onSignUpClick={() => setActiveModal('signup')}
+            onPricingClick={() => handleInfoClick('pricing')}
+          />
           <Testimonials />
           <FAQ />
         </main>

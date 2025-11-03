@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
+import { supabase } from '../lib/supabase';
+import {
+  hasAnonymousReachedLimit,
+  hasUserReachedLimit,
+  incrementAnonymousUsage,
+  incrementUserUsage,
+} from '../lib/usageLimits';
+import { createCheckoutSession, STRIPE_PRICES } from '../lib/stripe';
+import LimitReachedNotification from './LimitReachedNotification';
+import UsageBanner from './UsageBanner';
 
 interface Hustle {
   hustleName: string;
@@ -14,17 +24,24 @@ interface Hustle {
 
 interface DashboardDemoProps {
   onSignUpClick: () => void;
+  onPricingClick?: () => void;
 }
 
-const DashboardDemo: React.FC<DashboardDemoProps> = ({ onSignUpClick }) => {
+const DashboardDemo: React.FC<DashboardDemoProps> = ({ onSignUpClick, onPricingClick }) => {
   const [interest, setInterest] = useState('Creative & Design');
+  const [customInterest, setCustomInterest] = useState('');
   const [budget, setBudget] = useState('Almost Zero ($0-$50)');
+  const [customBudget, setCustomBudget] = useState('');
   const [time, setTime] = useState('Minimal (1-3 hours)');
+  const [customTime, setCustomTime] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<Hustle[]>([]);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [savedHustles, setSavedHustles] = useState<Set<string>>(new Set());
+  const [user, setUser] = useState<any>(null);
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [daysUntilReset, setDaysUntilReset] = useState(7);
 
   useEffect(() => {
     // Load saved hustles from localStorage on mount
@@ -37,6 +54,11 @@ const DashboardDemo: React.FC<DashboardDemoProps> = ({ onSignUpClick }) => {
         console.error('Error loading saved hustles:', e);
       }
     }
+
+    // Get current user
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user);
+    });
   }, []);
 
   const handleSaveHustle = (hustle: Hustle) => {
@@ -73,6 +95,37 @@ Learn More: ${hustle.learnMoreLink}
         console.error('Failed to copy text: ', err);
         setError("Could not copy to clipboard.");
     });
+  };
+
+  const handleDirectUpgrade = async () => {
+    // Check if user is logged in
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+
+    if (!currentUser) {
+      // User not logged in, show sign up modal
+      onSignUpClick();
+      return;
+    }
+
+    // Start checkout process
+    setIsLoading(true);
+    try {
+      const priceId = STRIPE_PRICES.entrepreneur;
+      const result = await createCheckoutSession(priceId);
+
+      if (result.error) {
+        alert(`Error: ${result.error}`);
+      } else if (result.url) {
+        // Redirect to Stripe checkout
+        window.location.href = result.url;
+      } else {
+        alert('Error: Could not create checkout session. Please try again.');
+      }
+    } catch (error: any) {
+      alert(`Error: ${error.message || 'Failed to start checkout'}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleExportCSV = () => {
@@ -118,6 +171,42 @@ Learn More: ${hustle.learnMoreLink}
   };
 
   const handleGenerate = async () => {
+    // STEP 1: Check usage limits FIRST
+    try {
+      if (user) {
+        // Logged in user - check database limit
+        const limitReached = await hasUserReachedLimit(user.id);
+        if (limitReached) {
+          // Get days until reset
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('usage_reset_date')
+            .eq('id', user.id)
+            .single();
+
+          if (profile?.usage_reset_date) {
+            const resetDate = new Date(profile.usage_reset_date);
+            const now = new Date();
+            const diff = resetDate.getTime() - now.getTime();
+            setDaysUntilReset(Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24))));
+          }
+
+          setShowLimitModal(true);
+          return; // STOP - don't generate
+        }
+      } else {
+        // Anonymous user - check localStorage limit
+        const limitReached = hasAnonymousReachedLimit();
+        if (limitReached) {
+          setShowLimitModal(true);
+          return; // STOP - don't generate
+        }
+      }
+    } catch (limitError) {
+      console.error('Error checking limit:', limitError);
+    }
+
+    // STEP 2: Proceed with generation
     setIsLoading(true);
     setError(null);
     setResults([]);
@@ -127,10 +216,14 @@ Learn More: ${hustle.learnMoreLink}
         throw new Error("API key is not configured.");
       }
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const actualInterest = interest === 'Custom' ? customInterest : interest;
+      const actualBudget = budget === 'Custom' ? customBudget : budget;
+      const actualTime = time === 'Custom' ? customTime : time;
+
       const prompt = `Based on the following user profile, generate 3 unique and creative side hustle ideas.
-      - Interest: ${interest}
-      - Budget: ${budget}
-      - Time per week: ${time}
+      - Interest: ${actualInterest}
+      - Budget: ${actualBudget}
+      - Time per week: ${actualTime}
       
       The ideas should be low-cost and suitable for a beginner.
       For each idea, provide a name, a short description, estimated monthly profit, estimated upfront cost, required time commitment per week, a list of 2-3 essential skills, a brief description of potential challenges a beginner might face, and a real, relevant "Learn More" URL (e.g., to a guide, platform, or resource).`;
@@ -166,6 +259,17 @@ Learn More: ${hustle.learnMoreLink}
       const resultText = response.text.trim();
       const generatedHustles = JSON.parse(resultText);
       setResults(generatedHustles);
+
+      // STEP 3: Increment usage count (ONLY after successful generation)
+      try {
+        if (user) {
+          await incrementUserUsage(user.id);
+        } else {
+          incrementAnonymousUsage();
+        }
+      } catch (usageError) {
+        console.error('Error incrementing usage:', usageError);
+      }
 
     } catch (err) {
       console.error("Error generating content:", err);
@@ -295,8 +399,10 @@ Learn More: ${hustle.learnMoreLink}
           <h2 className="text-3xl md:text-4xl font-bold text-light-text">See Nectar in Action</h2>
           <p className="text-lg text-medium-text mt-4">Tell us a bit about yourself and our AI will generate personalized side hustle ideas for you instantly.</p>
         </div>
-        
+
         <div className="max-w-4xl mx-auto bg-dark-card border border-dark-card-border p-8 rounded-2xl shadow-2xl">
+          {/* Usage Banner */}
+          <UsageBanner userId={user?.id} />
           <div className="grid md:grid-cols-3 gap-6 mb-8">
             <div>
               <label className="block text-sm font-bold text-medium-text mb-2">Interest</label>
@@ -311,7 +417,27 @@ Learn More: ${hustle.learnMoreLink}
                 <option>Health & Fitness</option>
                 <option>Handmade & Crafts</option>
                 <option>Events & Entertainment</option>
+                <option>Food & Beverage</option>
+                <option>Photography & Video</option>
+                <option>Real Estate & Property</option>
+                <option>Music & Audio</option>
+                <option>Gaming & Esports</option>
+                <option>Fashion & Beauty</option>
+                <option>Travel & Tourism</option>
+                <option>Marketing & Social Media</option>
+                <option>Pets & Animals</option>
+                <option>Home Services & Repair</option>
+                <option>Custom</option>
               </select>
+              {interest === 'Custom' && (
+                <input
+                  type="text"
+                  value={customInterest}
+                  onChange={(e) => setCustomInterest(e.target.value)}
+                  placeholder="Enter your interest..."
+                  className="w-full p-3 mt-2 bg-dark-bg border border-dark-card-border rounded-lg text-light-text focus:ring-2 focus:ring-brand-orange focus:border-brand-orange outline-none"
+                />
+              )}
             </div>
             <div>
               <label className="block text-sm font-bold text-medium-text mb-2">Budget</label>
@@ -320,7 +446,17 @@ Learn More: ${hustle.learnMoreLink}
                 <option>Low ($50 - $250)</option>
                 <option>Moderate ($250 - $1000)</option>
                 <option>Flexible ($1000+)</option>
+                <option>Custom</option>
               </select>
+              {budget === 'Custom' && (
+                <input
+                  type="text"
+                  value={customBudget}
+                  onChange={(e) => setCustomBudget(e.target.value)}
+                  placeholder="Enter your budget..."
+                  className="w-full p-3 mt-2 bg-dark-bg border border-dark-card-border rounded-lg text-light-text focus:ring-2 focus:ring-brand-orange focus:border-brand-orange outline-none"
+                />
+              )}
             </div>
             <div>
               <label className="block text-sm font-bold text-medium-text mb-2">Time per Week</label>
@@ -329,7 +465,17 @@ Learn More: ${hustle.learnMoreLink}
                 <option>Part-time (5-10 hours)</option>
                 <option>Significant (10-20 hours)</option>
                 <option>Full-time Focus (20+ hours)</option>
+                <option>Custom</option>
               </select>
+              {time === 'Custom' && (
+                <input
+                  type="text"
+                  value={customTime}
+                  onChange={(e) => setCustomTime(e.target.value)}
+                  placeholder="Enter your time commitment..."
+                  className="w-full p-3 mt-2 bg-dark-bg border border-dark-card-border rounded-lg text-light-text focus:ring-2 focus:ring-brand-orange focus:border-brand-orange outline-none"
+                />
+              )}
             </div>
           </div>
           
@@ -348,6 +494,24 @@ Learn More: ${hustle.learnMoreLink}
           </div>
         </div>
       </div>
+
+      {/* Limit Reached Modal */}
+      {showLimitModal && (
+        <LimitReachedNotification
+          isAnonymous={!user}
+          daysUntilReset={daysUntilReset}
+          onSignUp={() => {
+            setShowLimitModal(false);
+            onSignUpClick();
+          }}
+          onUpgrade={() => {
+            setShowLimitModal(false);
+            // Directly start checkout flow instead of just navigating to pricing
+            handleDirectUpgrade();
+          }}
+          onClose={() => setShowLimitModal(false)}
+        />
+      )}
     </section>
   );
 };

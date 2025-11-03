@@ -25,7 +25,7 @@ I've set up your entire Nectar application with all the API integrations ready t
 ### 3. Stripe Payment Integration ✅
 **Files Created/Modified:**
 - `lib/stripe.ts` - Stripe client with checkout session creation
-- `components/Pricing.tsx` - Two-tier pricing (Free & Entrepreneur at $29/month)
+- `components/Pricing.tsx` - Two-tier pricing (Free & Entrepreneur at $19/month)
 - `supabase/functions/create-checkout-session/index.ts` - Backend for Stripe checkout
 - `supabase/functions/stripe-webhook/index.ts` - Webhook handler for subscription events
 
@@ -115,7 +115,7 @@ I've created comprehensive guides:
 **Do this:**
 1. Follow [STRIPE_SETUP.md](STRIPE_SETUP.md) to create:
    - Free plan product
-   - Entrepreneur ($29/month) product
+   - Entrepreneur ($19/month) product
 2. Copy both Price IDs
 3. Update `lib/stripe.ts` lines 13-16 with your Price IDs
 4. Add Stripe keys to `.env`:

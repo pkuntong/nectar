@@ -12,24 +12,64 @@ const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 )
 
+// Price ID to plan name mapping - UPDATE THESE WITH YOUR ACTUAL PRICE IDs
+const PRICE_TO_PLAN: Record<string, string> = {
+  'price_1SOM6aDPosqqbsKxdrWWe834': 'free',
+  'price_1SOM7DDPosqqbsKx8lBviJSS': 'entrepreneur',
+}
+
+// Helper function to get plan name from price ID
+function getPlanFromPriceId(priceId: string): string {
+  return PRICE_TO_PLAN[priceId] || 'free'
+}
+
 serve(async (req) => {
+  // Log all incoming headers for debugging
+  console.log('Request received:', {
+    method: req.method,
+    url: req.url,
+    headers: Object.fromEntries(req.headers.entries())
+  })
+
   const signature = req.headers.get('stripe-signature')
   const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')
 
+  console.log('Webhook check:', {
+    hasSignature: !!signature,
+    hasSecret: !!webhookSecret,
+    method: req.method,
+  })
+
   if (!signature || !webhookSecret) {
-    return new Response('Missing signature or webhook secret', { status: 400 })
+    console.error('Missing signature or webhook secret', {
+      hasSignature: !!signature,
+      hasSecret: !!webhookSecret
+    })
+    return new Response(
+      JSON.stringify({ error: 'Missing signature or webhook secret' }),
+      { 
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    )
   }
 
   try {
     const body = await req.text()
-    const event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
+    const event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret)
 
-    console.log('Webhook event type:', event.type)
+    console.log('Webhook event verified successfully:', event.type)
 
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
         const userId = session.metadata?.user_id
+
+        console.log('checkout.session.completed:', {
+          userId,
+          mode: session.mode,
+          hasSubscription: !!session.subscription
+        })
 
         if (!userId) {
           console.error('No user_id in session metadata')
@@ -42,23 +82,47 @@ serve(async (req) => {
             session.subscription as string
           )
 
-          // Save subscription to database
-          await supabaseAdmin.from('subscriptions').upsert({
-            user_id: userId,
-            stripe_subscription_id: subscription.id,
-            stripe_price_id: subscription.items.data[0].price.id,
-            status: subscription.status,
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-            plan_name: subscription.items.data[0].price.nickname || 'entrepreneur',
+          const priceId = subscription.items.data[0].price.id
+          const planName = getPlanFromPriceId(priceId)
+
+          console.log('Subscription details:', {
+            subscriptionId: subscription.id,
+            priceId,
+            planName,
+            status: subscription.status
           })
 
+          // Save subscription to database
+          const { error: subError } = await supabaseAdmin.from('subscriptions').upsert({
+            user_id: userId,
+            stripe_subscription_id: subscription.id,
+            stripe_price_id: priceId,
+            status: subscription.status,
+            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+            plan_name: planName,
+          }, {
+            onConflict: 'stripe_subscription_id'
+          })
+
+          if (subError) {
+            console.error('Error saving subscription:', subError)
+          } else {
+            console.log('Subscription saved successfully')
+          }
+
           // Update user profile
-          await supabaseAdmin
+          const { error: profileError } = await supabaseAdmin
             .from('user_profiles')
             .update({
-              subscription_tier: subscription.items.data[0].price.nickname || 'entrepreneur'
+              subscription_tier: planName
             })
             .eq('id', userId)
+
+          if (profileError) {
+            console.error('Error updating profile:', profileError)
+          } else {
+            console.log(`Successfully updated user to ${planName} plan`)
+          }
         }
         break
       }
@@ -74,24 +138,45 @@ serve(async (req) => {
           .single()
 
         if (profile) {
-          await supabaseAdmin.from('subscriptions').upsert({
-            user_id: profile.id,
-            stripe_subscription_id: subscription.id,
-            stripe_price_id: subscription.items.data[0].price.id,
-            status: subscription.status,
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-            plan_name: subscription.items.data[0].price.nickname || 'entrepreneur',
+          const priceId = subscription.items.data[0].price.id
+          const planName = getPlanFromPriceId(priceId)
+
+          console.log('Subscription updated:', {
+            userId: profile.id,
+            priceId,
+            planName,
+            status: subscription.status
           })
 
-          // Update user profile tier
-          await supabaseAdmin
+          const { error } = await supabaseAdmin.from('subscriptions').upsert({
+            user_id: profile.id,
+            stripe_subscription_id: subscription.id,
+            stripe_price_id: priceId,
+            status: subscription.status,
+            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+            plan_name: planName,
+          }, {
+            onConflict: 'stripe_subscription_id'
+          })
+
+          if (error) {
+            console.error('Error upserting subscription:', error)
+          }
+
+          // Update user profile tier - only set to plan if subscription is active
+          const newTier = subscription.status === 'active' ? planName : 'free'
+          const { error: updateError } = await supabaseAdmin
             .from('user_profiles')
             .update({
-              subscription_tier: subscription.status === 'active'
-                ? (subscription.items.data[0].price.nickname || 'entrepreneur')
-                : 'free'
+              subscription_tier: newTier
             })
             .eq('id', profile.id)
+
+          if (updateError) {
+            console.error('Error updating tier:', updateError)
+          } else {
+            console.log(`Updated user tier to ${newTier}`)
+          }
         }
         break
       }
@@ -107,16 +192,24 @@ serve(async (req) => {
           .single()
 
         if (profile) {
-          await supabaseAdmin
+          const { error } = await supabaseAdmin
             .from('subscriptions')
             .update({ status: 'canceled' })
             .eq('stripe_subscription_id', subscription.id)
 
+          if (error) {
+            console.error('Error canceling subscription:', error)
+          }
+
           // Downgrade to free tier
-          await supabaseAdmin
+          const { error: downgradeError } = await supabaseAdmin
             .from('user_profiles')
             .update({ subscription_tier: 'free' })
             .eq('id', profile.id)
+
+          if (downgradeError) {
+            console.error('Error downgrading to free:', downgradeError)
+          }
         }
         break
       }
