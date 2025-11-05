@@ -6,8 +6,6 @@
 
 An AI-powered platform that helps users discover personalized side hustle opportunities.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1zRiDA3W9mtucw1t8P4x-1kwsP_-vUCRf
-
 ## 🚀 What's Been Set Up
 
 Your Nectar application is now fully integrated with:
