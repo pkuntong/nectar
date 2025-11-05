@@ -12,10 +12,16 @@ const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 )
 
-// Price ID to plan name mapping - UPDATE THESE WITH YOUR ACTUAL PRICE IDs
+// Price ID to plan name mapping
+// These should match the VITE_STRIPE_PRICE_* variables in your frontend .env
 const PRICE_TO_PLAN: Record<string, string> = {
+  // Default test mode IDs (will work if you haven't updated .env yet)
   'price_1SOM6aDPosqqbsKxdrWWe834': 'free',
   'price_1SOM7DDPosqqbsKx8lBviJSS': 'entrepreneur',
+
+  // TODO: Add your LIVE mode price IDs here when you switch to production:
+  // 'price_LIVE_XXX_free': 'free',
+  // 'price_LIVE_XXX_entrepreneur': 'entrepreneur',
 }
 
 // Helper function to get plan name from price ID

@@ -18,10 +18,11 @@ export const initSentry = () => {
       }),
     ],
     // Performance Monitoring
-    tracesSampleRate: 1.0, // 100% in development, adjust for production (e.g., 0.1 for 10%)
+    // ✅ Sample 100% in dev, only 10% in production to save costs
+    tracesSampleRate: import.meta.env.MODE === 'production' ? 0.1 : 1.0,
     // Session Replay
-    replaysSessionSampleRate: 0.1, // 10% of sessions
-    replaysOnErrorSampleRate: 1.0, // 100% of sessions with an error
+    replaysSessionSampleRate: import.meta.env.MODE === 'production' ? 0.1 : 0.5,
+    replaysOnErrorSampleRate: 1.0, // Always capture sessions with errors
     environment: import.meta.env.MODE || 'development',
   });
 };

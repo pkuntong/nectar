@@ -21,7 +21,7 @@ const Logo: React.FC = () => (
 );
 
 interface FooterProps {
-    onInfoClick: (type: 'pricing' | 'about' | 'careers' | 'privacy' | 'tos') => void;
+    onInfoClick: (type: 'pricing' | 'about' | 'blog' | 'privacy' | 'tos') => void;
 }
 
 const Footer: React.FC<FooterProps> = ({ onInfoClick }) => {
@@ -30,7 +30,7 @@ const Footer: React.FC<FooterProps> = ({ onInfoClick }) => {
         document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
     };
 
-    const handleInfoClick = (e: React.MouseEvent<HTMLAnchorElement>, type: 'pricing' | 'about' | 'careers' | 'privacy' | 'tos') => {
+    const handleInfoClick = (e: React.MouseEvent<HTMLAnchorElement>, type: 'pricing' | 'about' | 'blog' | 'privacy' | 'tos') => {
         e.preventDefault();
         onInfoClick(type);
     };
@@ -54,7 +54,7 @@ const Footer: React.FC<FooterProps> = ({ onInfoClick }) => {
                         <h3 className="font-bold text-light-text mb-4">Company</h3>
                         <ul className="space-y-2">
                             <li><a href="#" onClick={(e) => handleInfoClick(e, 'about')} className="text-medium-text hover:text-brand-orange-light">About Us</a></li>
-                            <li><a href="#" onClick={(e) => handleInfoClick(e, 'careers')} className="text-medium-text hover:text-brand-orange-light">Careers</a></li>
+                            <li><a href="#" onClick={(e) => handleInfoClick(e, 'blog')} className="text-medium-text hover:text-brand-orange-light">Blog</a></li>
                         </ul>
                     </div>
                     <div>

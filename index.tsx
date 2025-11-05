@@ -1,3 +1,6 @@
+// Validate environment variables first
+import './lib/env';
+
 import { initSentry } from './lib/sentry';
 import * as Sentry from '@sentry/react';
 

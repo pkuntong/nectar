@@ -115,16 +115,21 @@ const SettingsContent: React.FC<{ onProfileUpdate?: () => void }> = ({ onProfile
             if (user) {
                 setEmail(user.email || '');
                 setFullName(user.user_metadata?.full_name || user.email?.split('@')[0] || '');
-                
-                // Load subscription tier
+
+                // Load subscription tier and notification preferences
                 const { data: profile } = await supabase
                     .from('user_profiles')
-                    .select('subscription_tier')
+                    .select('subscription_tier, notification_preferences')
                     .eq('id', user.id)
                     .single();
-                
+
                 if (profile?.subscription_tier) {
                     setSubscriptionTier(profile.subscription_tier);
+                }
+
+                // Load notification preferences if they exist
+                if (profile?.notification_preferences) {
+                    setNotifications(profile.notification_preferences);
                 }
             }
         } catch (error) {
@@ -197,8 +202,30 @@ const SettingsContent: React.FC<{ onProfileUpdate?: () => void }> = ({ onProfile
         }
     };
 
-    const handleToggle = (key: keyof typeof notifications) => {
-        setNotifications(prev => ({...prev, [key]: !prev[key]}));
+    const handleToggle = async (key: keyof typeof notifications) => {
+        const newNotifications = { ...notifications, [key]: !notifications[key] };
+        setNotifications(newNotifications);
+
+        // Save to database
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { error } = await supabase
+                    .from('user_profiles')
+                    .update({ notification_preferences: newNotifications })
+                    .eq('id', user.id);
+
+                if (error) {
+                    console.error('Error saving notification preferences:', error);
+                    // Revert on error
+                    setNotifications(notifications);
+                }
+            }
+        } catch (error) {
+            console.error('Error updating notifications:', error);
+            // Revert on error
+            setNotifications(notifications);
+        }
     };
 
     const handleUpgrade = async () => {
@@ -219,6 +246,47 @@ const SettingsContent: React.FC<{ onProfileUpdate?: () => void }> = ({ onProfile
             alert(`Error: ${error.message || 'Failed to start checkout'}`);
         } finally {
             setUpgrading(false);
+        }
+    };
+
+    const handleManageSubscription = async () => {
+        setLoading(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                throw new Error('User not authenticated');
+            }
+
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+            const functionUrl = `${supabaseUrl}/functions/v1/create-portal-session`;
+
+            const response = await fetch(functionUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+                },
+                body: JSON.stringify({
+                    returnUrl: `${window.location.origin}/dashboard?tab=settings`,
+                }),
+            });
+
+            const responseData = await response.json();
+
+            if (!response.ok) {
+                throw new Error(responseData.error || 'Failed to create portal session');
+            }
+
+            if (responseData.url) {
+                window.location.href = responseData.url;
+            } else {
+                throw new Error('No portal URL returned');
+            }
+        } catch (error: any) {
+            alert(`Error: ${error.message || 'Failed to open subscription management. Please contact support.'}`);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -327,12 +395,16 @@ const SettingsContent: React.FC<{ onProfileUpdate?: () => void }> = ({ onProfile
                         {subscriptionTier === 'entrepreneur' && (
                             <div className="pt-4 border-t border-dark-card-border">
                                 <p className="text-sm text-medium-text mb-3">Manage your subscription</p>
-                                <button 
-                                    onClick={() => alert('Subscription management coming soon! Contact support for any changes.')}
-                                    className="text-medium-text hover:text-light-text text-sm font-medium underline"
-                                >
-                                    Manage Subscription
-                                </button>
+                                <div className="space-y-2">
+                                    <button
+                                        onClick={handleManageSubscription}
+                                        disabled={loading}
+                                        className="text-brand-orange hover:text-brand-orange-light text-sm font-medium underline disabled:opacity-50"
+                                    >
+                                        {loading ? 'Loading...' : 'Manage Billing & Cancel Subscription'}
+                                    </button>
+                                    <p className="text-xs text-medium-text">View invoices, update payment method, or cancel your subscription</p>
+                                </div>
                             </div>
                         )}
                     </div>

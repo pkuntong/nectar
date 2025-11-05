@@ -1,5 +1,6 @@
 import { loadStripe } from '@stripe/stripe-js';
 import { supabase } from './supabase';
+import { logger } from './logger';
 
 const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || process.env.VITE_STRIPE_PUBLISHABLE_KEY;
 
@@ -9,25 +10,31 @@ if (!stripePublishableKey) {
 
 export const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
 
-// Price IDs - UPDATE THESE WITH YOUR ACTUAL STRIPE PRICE IDs
+// ✅ Price IDs from environment variables
+// Update these in .env file when switching to Stripe LIVE mode
 export const STRIPE_PRICES = {
-  free: 'price_1SOM6aDPosqqbsKxdrWWe834',           // Replace with your actual free plan price ID
-  entrepreneur: 'price_1SOM7DDPosqqbsKx8lBviJSS'  // Replace with your actual entrepreneur plan price ID
+  free: import.meta.env.VITE_STRIPE_PRICE_FREE || process.env.VITE_STRIPE_PRICE_FREE || 'price_1SOM6aDPosqqbsKxdrWWe834',
+  entrepreneur: import.meta.env.VITE_STRIPE_PRICE_ENTREPRENEUR || process.env.VITE_STRIPE_PRICE_ENTREPRENEUR || 'price_1SOM7DDPosqqbsKx8lBviJSS'
 };
+
+// Validate price IDs are set
+if (!STRIPE_PRICES.entrepreneur || STRIPE_PRICES.entrepreneur.startsWith('price_xxx')) {
+  console.warn('⚠️ Stripe price IDs not configured. Update VITE_STRIPE_PRICE_* in .env');
+}
 
 export const createCheckoutSession = async (priceId: string) => {
   try {
-    console.log('createCheckoutSession called with priceId:', priceId);
+    logger.log('createCheckoutSession called with priceId:', priceId);
 
     // Get the current user's session token
     const { data: { session } } = await supabase.auth.getSession();
-    console.log('User session:', session?.user?.id);
+    logger.log('User session:', session?.user?.id);
 
     if (!session) {
       throw new Error('User not authenticated');
     }
 
-    console.log('Invoking create-checkout-session Edge Function...');
+    logger.log('Invoking create-checkout-session Edge Function...');
 
     // Get Supabase URL for function endpoint
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -49,18 +56,18 @@ export const createCheckoutSession = async (priceId: string) => {
     });
 
     const responseData = await response.json();
-    console.log('Edge Function response:', { status: response.status, data: responseData });
+    logger.log('Edge Function response:', { status: response.status, data: responseData });
 
     if (!response.ok) {
       // Extract actual error message from response body
       const errorMessage = responseData?.error || responseData?.message || `HTTP ${response.status}: ${response.statusText}`;
-      console.error('Edge Function error:', errorMessage);
+      logger.error('Edge Function error:', errorMessage);
       throw new Error(errorMessage);
     }
 
     // Check if response contains error field (shouldn't happen if response.ok, but just in case)
     if (responseData.error) {
-      console.error('Edge Function returned error in data:', responseData.error);
+      logger.error('Edge Function returned error in data:', responseData.error);
       throw new Error(responseData.error);
     }
 
@@ -74,7 +81,7 @@ export const createCheckoutSession = async (priceId: string) => {
       error: null
     };
   } catch (error: any) {
-    console.error('Error creating checkout session:', error);
+    logger.error('Error creating checkout session:', error);
     return {
       sessionId: null,
       url: null,

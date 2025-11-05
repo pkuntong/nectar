@@ -1,0 +1,10 @@
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Disallow private/authenticated pages
+Disallow: /dashboard
+Disallow: /dashboard/*
+
+# Sitemap location
+Sitemap: https://nectar.ai/sitemap.xml
