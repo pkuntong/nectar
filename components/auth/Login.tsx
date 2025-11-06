@@ -35,35 +35,39 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onError }) => {
 
   return (
     <div>
-      <p className="text-medium-text mb-6">Enter your credentials to access your dashboard.</p>
+      <p className="text-medium-text mb-8 text-lg leading-relaxed">Enter your credentials to access your dashboard.</p>
       <form onSubmit={handleLogin}>
-        <div className="space-y-4">
-          <input 
-            type="email" 
-            placeholder="Email" 
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-3 bg-dark-bg border border-dark-card-border rounded-lg text-light-text focus:ring-2 focus:ring-brand-orange focus:border-brand-orange outline-none" 
-            required 
-          />
-          <input 
-            type="password" 
-            placeholder="Password" 
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-3 bg-dark-bg border border-dark-card-border rounded-lg text-light-text focus:ring-2 focus:ring-brand-orange focus:border-brand-orange outline-none" 
-            required 
-          />
+        <div className="space-y-5">
+          <div>
+            <input 
+              type="email" 
+              placeholder="Email" 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full p-4 bg-dark-bg border border-dark-card-border rounded-xl text-light-text focus:ring-2 focus:ring-brand-orange focus:border-brand-orange outline-none transition-all duration-300 hover:border-brand-orange/50" 
+              required 
+            />
+          </div>
+          <div>
+            <input 
+              type="password" 
+              placeholder="Password" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full p-4 bg-dark-bg border border-dark-card-border rounded-xl text-light-text focus:ring-2 focus:ring-brand-orange focus:border-brand-orange outline-none transition-all duration-300 hover:border-brand-orange/50" 
+              required 
+            />
+          </div>
         </div>
-        <div className="flex items-center justify-between mt-4">
-          <label className="flex items-center text-sm text-medium-text select-none cursor-pointer">
-            <input type="checkbox" className="h-4 w-4 rounded border-dark-card-border bg-dark-bg text-brand-orange focus:ring-brand-orange focus:ring-offset-dark-card" />
-            <span className="ml-2">Remember me</span>
+        <div className="flex items-center justify-between mt-6">
+          <label className="flex items-center text-sm text-medium-text select-none cursor-pointer group">
+            <input type="checkbox" className="h-4 w-4 rounded border-dark-card-border bg-dark-bg text-brand-orange focus:ring-brand-orange focus:ring-offset-dark-card transition-all duration-300 group-hover:border-brand-orange/50" />
+            <span className="ml-2 group-hover:text-light-text transition-colors duration-300">Remember me</span>
           </label>
           <button 
             type="button"
             onClick={() => onError('Password reset not implemented yet')} 
-            className="text-sm text-brand-orange-light hover:underline"
+            className="text-sm text-brand-orange-light hover:text-brand-orange transition-colors duration-300"
           >
             Forgot password?
           </button>
@@ -71,7 +75,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onError }) => {
         <button 
           type="submit" 
           disabled={loading}
-          className="w-full mt-6 bg-gradient-to-r from-brand-orange-light to-brand-orange text-white font-bold py-3 px-5 rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full mt-8 bg-gradient-to-r from-brand-orange-light to-brand-orange text-white font-bold py-4 px-6 rounded-xl hover:scale-105 active:scale-100 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-brand-orange/30 hover:shadow-glow-orange-sm"
         >
           {loading ? 'Logging in...' : 'Login'}
         </button>

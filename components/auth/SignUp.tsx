@@ -55,15 +55,15 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUpSuccess, onError }) => {
 
   return (
     <div>
-      <p className="text-medium-text mb-6">Create your account to start finding your next income stream.</p>
+      <p className="text-medium-text mb-8 text-lg leading-relaxed">Create your account to start finding your next income stream.</p>
       <form onSubmit={handleSignUp}>
-        <div className="space-y-4">
+        <div className="space-y-5">
           <input 
             type="text" 
             placeholder="Full Name" 
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            className="w-full p-3 bg-dark-bg border border-dark-card-border rounded-lg text-light-text focus:ring-2 focus:ring-brand-orange focus:border-brand-orange outline-none" 
+            className="w-full p-4 bg-dark-bg border border-dark-card-border rounded-xl text-light-text focus:ring-2 focus:ring-brand-orange focus:border-brand-orange outline-none transition-all duration-300 hover:border-brand-orange/50" 
             required 
           />
           <input 
@@ -71,7 +71,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUpSuccess, onError }) => {
             placeholder="Email" 
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-3 bg-dark-bg border border-dark-card-border rounded-lg text-light-text focus:ring-2 focus:ring-brand-orange focus:border-brand-orange outline-none" 
+            className="w-full p-4 bg-dark-bg border border-dark-card-border rounded-xl text-light-text focus:ring-2 focus:ring-brand-orange focus:border-brand-orange outline-none transition-all duration-300 hover:border-brand-orange/50" 
             required 
           />
           <input 
@@ -79,7 +79,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUpSuccess, onError }) => {
             placeholder="Password" 
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-3 bg-dark-bg border border-dark-card-border rounded-lg text-light-text focus:ring-2 focus:ring-brand-orange focus:border-brand-orange outline-none" 
+            className="w-full p-4 bg-dark-bg border border-dark-card-border rounded-xl text-light-text focus:ring-2 focus:ring-brand-orange focus:border-brand-orange outline-none transition-all duration-300 hover:border-brand-orange/50" 
             required 
             minLength={6}
           />
@@ -87,7 +87,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUpSuccess, onError }) => {
         <button 
           type="submit" 
           disabled={loading}
-          className="w-full mt-6 bg-gradient-to-r from-brand-orange-light to-brand-orange text-white font-bold py-3 px-5 rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full mt-8 bg-gradient-to-r from-brand-orange-light to-brand-orange text-white font-bold py-4 px-6 rounded-xl hover:scale-105 active:scale-100 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-brand-orange/30 hover:shadow-glow-orange-sm"
         >
           {loading ? 'Creating Account...' : 'Create Account'}
         </button>

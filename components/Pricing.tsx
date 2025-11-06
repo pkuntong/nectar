@@ -14,24 +14,29 @@ interface PlanCardProps {
 }
 
 const PlanCard: React.FC<PlanCardProps> = ({ planName, price, priceDetails, features, isFeatured, onChoosePlan, loading }) => (
-  <div className={`border rounded-lg p-6 flex flex-col ${isFeatured ? 'bg-dark-bg border-brand-orange' : 'bg-dark-card border-dark-card-border'}`}>
-    <h3 className="text-xl font-bold text-light-text">{planName}</h3>
-    <p className="mt-4">
-      <span className="text-4xl font-extrabold text-light-text">{price}</span>
-      <span className="text-medium-text"> {priceDetails}</span>
+  <div className={`group relative border rounded-2xl p-8 flex flex-col transition-all duration-300 ${isFeatured ? 'bg-dark-bg border-brand-orange shadow-glow-orange scale-105' : 'bg-dark-card border-dark-card-border hover:border-brand-orange/30 hover:shadow-card-hover hover:-translate-y-1'}`}>
+    {isFeatured && (
+      <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
+        <span className="bg-gradient-to-r from-brand-orange-light to-brand-orange text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg">POPULAR</span>
+      </div>
+    )}
+    <h3 className="text-2xl font-bold text-light-text mb-2">{planName}</h3>
+    <p className="mt-4 mb-2">
+      <span className="text-5xl font-extrabold text-light-text tracking-tight">{price}</span>
+      <span className="text-lg text-medium-text ml-2"> {priceDetails}</span>
     </p>
-    <ul className="mt-6 space-y-4 text-medium-text flex-grow">
+    <ul className="mt-8 space-y-4 text-medium-text flex-grow">
       {features.map((feature, index) => (
-        <li key={index} className="flex items-start">
-          <svg className="w-5 h-5 mr-2 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-          <span>{feature}</span>
+        <li key={index} className="flex items-start group/item">
+          <svg className="w-6 h-6 mr-3 text-brand-orange-light flex-shrink-0 mt-0.5 group-hover/item:scale-110 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"></path></svg>
+          <span className="leading-relaxed">{feature}</span>
         </li>
       ))}
     </ul>
     <button 
       onClick={() => onChoosePlan(planName, price === '$0')}
       disabled={loading}
-      className={`w-full mt-8 py-3 rounded-md font-bold transition-opacity disabled:opacity-50 disabled:cursor-not-allowed ${isFeatured ? 'bg-gradient-to-r from-brand-orange-light to-brand-orange text-white hover:opacity-90' : 'bg-dark-card border border-dark-card-border text-light-text hover:bg-white/5'}`}
+      className={`w-full mt-8 py-4 rounded-xl font-bold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${isFeatured ? 'bg-gradient-to-r from-brand-orange-light to-brand-orange text-white hover:scale-105 active:scale-100 shadow-lg shadow-brand-orange/30 hover:shadow-glow-orange-sm' : 'bg-dark-card border-2 border-dark-card-border text-light-text hover:bg-dark-card hover:border-brand-orange/50 hover:text-brand-orange-light'}`}
     >
       {loading ? 'Processing...' : 'Choose Plan'}
     </button>
@@ -108,13 +113,13 @@ const Pricing: React.FC = () => {
 
   return (
     <div className="text-light-text">
-        <p className="text-center text-medium-text mb-8">Choose the plan that's right for you and unlock your earning potential.</p>
+        <p className="text-center text-medium-text mb-12 text-lg leading-relaxed">Choose the plan that's right for you and unlock your earning potential.</p>
         {error && (
-          <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm animate-fade-in">
             {error}
           </div>
         )}
-        <div className="grid sm:grid-cols-2 gap-6">
+        <div className="grid sm:grid-cols-2 gap-8">
             <PlanCard 
                 planName="Hustler"
                 price="$0"

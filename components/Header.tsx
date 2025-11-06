@@ -48,34 +48,69 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, onLoginClick, onSignUpClick
   };
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-dark-bg/80 backdrop-blur-sm border-b border-dark-card-border' : 'bg-transparent'}`}>
+    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${isScrolled ? 'bg-dark-bg/95 backdrop-blur-md border-b border-dark-card-border shadow-card' : 'bg-transparent'}`}>
       <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-        <button onClick={() => handleNavClick('top')}><Logo /></button>
+        <button 
+          onClick={() => handleNavClick('top')}
+          className="group transition-transform duration-300 hover:scale-105 active:scale-95"
+        >
+          <Logo />
+        </button>
         {!isLoggedIn && (
-            <nav className="hidden md:flex items-center space-x-8">
-              <button onClick={() => handleNavClick('how-it-works')} className="text-medium-text hover:text-light-text transition-colors duration-300">How It Works</button>
-              <button onClick={() => handleNavClick('features')} className="text-medium-text hover:text-light-text transition-colors duration-300">Features</button>
-              <button onClick={() => handleNavClick('dashboard-demo')} className="text-medium-text hover:text-light-text transition-colors duration-300">Demo</button>
+            <nav className="hidden md:flex items-center space-x-10">
+              <button 
+                onClick={() => handleNavClick('how-it-works')} 
+                className="text-medium-text hover:text-light-text transition-all duration-300 relative group"
+              >
+                How It Works
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-brand-orange group-hover:w-full transition-all duration-300"></span>
+              </button>
+              <button 
+                onClick={() => handleNavClick('features')} 
+                className="text-medium-text hover:text-light-text transition-all duration-300 relative group"
+              >
+                Features
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-brand-orange group-hover:w-full transition-all duration-300"></span>
+              </button>
+              <button 
+                onClick={() => handleNavClick('dashboard-demo')} 
+                className="text-medium-text hover:text-light-text transition-all duration-300 relative group"
+              >
+                Demo
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-brand-orange group-hover:w-full transition-all duration-300"></span>
+              </button>
             </nav>
         )}
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-3">
             {isLoggedIn ? (
                 <>
                     {onDashboardClick && (
-                        <button onClick={onDashboardClick} className="bg-brand-orange text-white font-bold py-2 px-5 rounded-md hover:opacity-90 transition-opacity shadow-md shadow-brand-orange/20">
+                        <button 
+                          onClick={onDashboardClick} 
+                          className="bg-gradient-to-r from-brand-orange-light to-brand-orange text-white font-bold py-2.5 px-6 rounded-lg hover:scale-105 active:scale-95 transition-all duration-300 shadow-lg shadow-brand-orange/30 hover:shadow-glow-orange-sm"
+                        >
                             Dashboard
                         </button>
                     )}
-                    <button onClick={onLogout} className="bg-dark-card border border-dark-card-border text-light-text font-medium py-2 px-5 rounded-md hover:bg-white/5 transition-colors">
+                    <button 
+                      onClick={onLogout} 
+                      className="bg-dark-card/80 backdrop-blur-sm border border-dark-card-border text-light-text font-medium py-2.5 px-6 rounded-lg hover:bg-dark-card hover:border-brand-orange/30 transition-all duration-300"
+                    >
                         Logout
                     </button>
                 </>
             ) : (
                 <>
-                    <button onClick={onLoginClick} className="text-light-text font-medium py-2 px-5 rounded-md hover:bg-white/5 transition-colors">
+                    <button 
+                      onClick={onLoginClick} 
+                      className="text-light-text font-medium py-2.5 px-6 rounded-lg hover:bg-white/5 transition-all duration-300"
+                    >
                         Login
                     </button>
-                    <button onClick={onSignUpClick} className="bg-gradient-to-r from-brand-orange-light to-brand-orange text-white font-bold py-2 px-5 rounded-md hover:opacity-90 transition-opacity shadow-md shadow-brand-orange/20">
+                    <button 
+                      onClick={onSignUpClick} 
+                      className="bg-gradient-to-r from-brand-orange-light to-brand-orange text-white font-bold py-2.5 px-6 rounded-lg hover:scale-105 active:scale-95 transition-all duration-300 shadow-lg shadow-brand-orange/30 hover:shadow-glow-orange-sm"
+                    >
                         Sign Up for Free
                     </button>
                 </>

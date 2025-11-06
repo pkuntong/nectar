@@ -7,22 +7,22 @@ interface StepCardProps {
 }
 
 const StepCard: React.FC<StepCardProps> = ({ title, description, icon }) => (
-  <div className="text-center p-8 bg-dark-card border border-dark-card-border rounded-xl shadow-lg hover:shadow-brand-orange/10 hover:-translate-y-1 transition-all duration-300">
-    <div className="flex items-center justify-center h-16 w-16 rounded-full bg-brand-orange/10 text-brand-orange-light mx-auto mb-6">
+  <div className="group text-center p-10 bg-dark-card border border-dark-card-border rounded-2xl shadow-card hover:shadow-card-hover hover:border-brand-orange/30 hover:-translate-y-2 transition-all duration-300">
+    <div className="flex items-center justify-center h-20 w-20 rounded-2xl bg-gradient-to-br from-brand-orange/20 to-brand-orange-light/10 text-brand-orange-light mx-auto mb-6 group-hover:scale-110 group-hover:shadow-glow-orange-sm transition-all duration-300">
       {icon}
     </div>
-    <h3 className="text-xl font-bold mb-3 text-light-text">{title}</h3>
-    <p className="text-medium-text">{description}</p>
+    <h3 className="text-2xl font-bold mb-4 text-light-text group-hover:text-brand-orange-light transition-colors duration-300">{title}</h3>
+    <p className="text-medium-text leading-relaxed">{description}</p>
   </div>
 );
 
 const HowItWorks: React.FC = () => {
   return (
-    <section id="how-it-works" className="py-20">
+    <section id="how-it-works" className="py-24">
       <div className="container mx-auto px-6">
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-light-text">Start Earning in 3 Simple Steps</h2>
-          <p className="text-lg text-medium-text mt-4">We make finding your next income stream effortless. Here's how our AI gets to work for you.</p>
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <h2 className="text-4xl md:text-5xl font-extrabold text-light-text mb-6 tracking-tight">Start Earning in 3 Simple Steps</h2>
+          <p className="text-xl text-medium-text leading-relaxed">We make finding your next income stream effortless. Here's how our AI gets to work for you.</p>
         </div>
         <div className="grid md:grid-cols-3 gap-8">
           <StepCard 

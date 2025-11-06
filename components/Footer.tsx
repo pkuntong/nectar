@@ -37,35 +37,35 @@ const Footer: React.FC<FooterProps> = ({ onInfoClick }) => {
 
     return (
         <footer className="bg-dark-bg border-t border-dark-card-border">
-            <div className="container mx-auto px-6 py-12">
-                <div className="grid md:grid-cols-4 gap-8">
+            <div className="container mx-auto px-6 py-16">
+                <div className="grid md:grid-cols-4 gap-12">
                     <div className="col-span-1">
                         <Logo />
-                        <p className="mt-4 text-medium-text">AI-powered income streams.</p>
+                        <p className="mt-6 text-medium-text leading-relaxed">AI-powered income streams. Your next side hustle awaits.</p>
                     </div>
                     <div>
-                        <h3 className="font-bold text-light-text mb-4">Product</h3>
-                        <ul className="space-y-2">
-                            <li><a href="#features" onClick={(e) => handleScrollClick(e, 'features')} className="text-medium-text hover:text-brand-orange-light">Features</a></li>
-                            <li><a href="#" onClick={(e) => handleInfoClick(e, 'pricing')} className="text-medium-text hover:text-brand-orange-light">Pricing</a></li>
+                        <h3 className="font-bold text-light-text mb-6 text-lg">Product</h3>
+                        <ul className="space-y-3">
+                            <li><a href="#features" onClick={(e) => handleScrollClick(e, 'features')} className="text-medium-text hover:text-brand-orange-light transition-colors duration-300 inline-block hover:translate-x-1">Features</a></li>
+                            <li><a href="#" onClick={(e) => handleInfoClick(e, 'pricing')} className="text-medium-text hover:text-brand-orange-light transition-colors duration-300 inline-block hover:translate-x-1">Pricing</a></li>
                         </ul>
                     </div>
                     <div>
-                        <h3 className="font-bold text-light-text mb-4">Company</h3>
-                        <ul className="space-y-2">
-                            <li><a href="#" onClick={(e) => handleInfoClick(e, 'about')} className="text-medium-text hover:text-brand-orange-light">About Us</a></li>
-                            <li><a href="mailto:support@nectar.ai" className="text-medium-text hover:text-brand-orange-light">Contact</a></li>
+                        <h3 className="font-bold text-light-text mb-6 text-lg">Company</h3>
+                        <ul className="space-y-3">
+                            <li><a href="#" onClick={(e) => handleInfoClick(e, 'about')} className="text-medium-text hover:text-brand-orange-light transition-colors duration-300 inline-block hover:translate-x-1">About Us</a></li>
+                            <li><a href="mailto:support@nectar.ai" className="text-medium-text hover:text-brand-orange-light transition-colors duration-300 inline-block hover:translate-x-1">Contact</a></li>
                         </ul>
                     </div>
                     <div>
-                        <h3 className="font-bold text-light-text mb-4">Legal</h3>
-                        <ul className="space-y-2">
-                            <li><a href="#" onClick={(e) => handleInfoClick(e, 'privacy')} className="text-medium-text hover:text-brand-orange-light">Privacy Policy</a></li>
-                            <li><a href="#" onClick={(e) => handleInfoClick(e, 'tos')} className="text-medium-text hover:text-brand-orange-light">Terms of Service</a></li>
+                        <h3 className="font-bold text-light-text mb-6 text-lg">Legal</h3>
+                        <ul className="space-y-3">
+                            <li><a href="#" onClick={(e) => handleInfoClick(e, 'privacy')} className="text-medium-text hover:text-brand-orange-light transition-colors duration-300 inline-block hover:translate-x-1">Privacy Policy</a></li>
+                            <li><a href="#" onClick={(e) => handleInfoClick(e, 'tos')} className="text-medium-text hover:text-brand-orange-light transition-colors duration-300 inline-block hover:translate-x-1">Terms of Service</a></li>
                         </ul>
                     </div>
                 </div>
-                <div className="mt-12 border-t border-dark-card-border pt-8 text-center text-medium-text">
+                <div className="mt-16 border-t border-dark-card-border pt-8 text-center text-medium-text">
                     <p>&copy; {new Date().getFullYear()} Nectar AI, Inc. All rights reserved.</p>
                 </div>
             </div>

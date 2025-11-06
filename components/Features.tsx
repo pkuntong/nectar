@@ -7,14 +7,14 @@ interface FeatureCardProps {
 }
 
 const FeatureCard: React.FC<FeatureCardProps> = ({ title, description, icon }) => (
-  <div className="bg-dark-card border border-dark-card-border p-6 rounded-lg">
-    <div className="flex items-center space-x-4">
-      <div className="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-lg bg-brand-orange/10 text-brand-orange-light">
+  <div className="group bg-dark-card border border-dark-card-border p-8 rounded-xl hover:border-brand-orange/30 hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1">
+    <div className="flex items-start space-x-5">
+      <div className="flex-shrink-0 flex items-center justify-center h-14 w-14 rounded-xl bg-gradient-to-br from-brand-orange/20 to-brand-orange-light/10 text-brand-orange-light group-hover:scale-110 group-hover:shadow-glow-orange-sm transition-all duration-300">
         {icon}
       </div>
-      <div>
-        <h3 className="text-lg font-bold text-light-text">{title}</h3>
-        <p className="mt-1 text-medium-text">{description}</p>
+      <div className="flex-1">
+        <h3 className="text-xl font-bold text-light-text mb-2 group-hover:text-brand-orange-light transition-colors duration-300">{title}</h3>
+        <p className="text-medium-text leading-relaxed">{description}</p>
       </div>
     </div>
   </div>
@@ -22,13 +22,13 @@ const FeatureCard: React.FC<FeatureCardProps> = ({ title, description, icon }) =
 
 const Features: React.FC = () => {
   return (
-    <section id="features" className="py-20 bg-dark-bg/50">
+    <section id="features" className="py-24 bg-dark-bg/50">
       <div className="container mx-auto px-6">
-        <div className="text-center max-w-3xl mx-auto mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-light-text">Why Choose Nectar?</h2>
-          <p className="text-lg text-medium-text mt-4">We're not just another list of ideas. We provide a tailored platform for growth.</p>
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <h2 className="text-4xl md:text-5xl font-extrabold text-light-text mb-6 tracking-tight">Why Choose Nectar?</h2>
+          <p className="text-xl text-medium-text leading-relaxed">We're not just another list of ideas. We provide a tailored platform for growth.</p>
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-2 gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-2 gap-6">
           <FeatureCard
             title="Hyper-Personalized"
             description="Our AI learns your unique skills, passions, and risk tolerance."
