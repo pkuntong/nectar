@@ -17,13 +17,15 @@ Your app needs these environment variables configured in Vercel to run properly.
 VITE_SUPABASE_URL=your_supabase_url_here
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key_here
+VITE_STRIPE_PRICE_FREE=price_xxx
+VITE_STRIPE_PRICE_ENTREPRENEUR=price_xxx
 ```
+
+**Note:** The Stripe price IDs are required for the pricing/subscription features to work. Without them, users won't be able to subscribe.
 
 ### Optional but Recommended
 
 ```
-VITE_STRIPE_PRICE_FREE=price_xxx
-VITE_STRIPE_PRICE_ENTREPRENEUR=price_xxx
 VITE_SENTRY_DSN=your_sentry_dsn_here
 VITE_GROQ_API_KEY=your_groq_key_here
 GEMINI_API_KEY=your_gemini_key_here

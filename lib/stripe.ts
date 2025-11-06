@@ -17,7 +17,7 @@ export const STRIPE_PRICES = {
   entrepreneur: import.meta.env.VITE_STRIPE_PRICE_ENTREPRENEUR || process.env.VITE_STRIPE_PRICE_ENTREPRENEUR
 };
 
-// Validate price IDs are set - fail fast if missing
+// Validate price IDs are set - warn if missing but don't crash in production
 if (!STRIPE_PRICES.free || !STRIPE_PRICES.entrepreneur) {
   const missing = [];
   if (!STRIPE_PRICES.free) missing.push('VITE_STRIPE_PRICE_FREE');
@@ -29,10 +29,28 @@ if (!STRIPE_PRICES.free || !STRIPE_PRICES.entrepreneur) {
     'VITE_STRIPE_PRICE_ENTREPRENEUR=price_...';
 
   console.error(errorMessage);
-  throw new Error(errorMessage);
+  
+  // In production, log but don't crash - pricing features will be disabled
+  if (import.meta.env.MODE === 'production') {
+    console.warn('Stripe pricing features will be disabled due to missing price IDs. Add them in Vercel environment variables.');
+  } else {
+    // In development, throw to catch issues early
+    throw new Error(errorMessage);
+  }
 }
 
 export const createCheckoutSession = async (priceId: string) => {
+  // Check if Stripe is properly configured
+  if (!stripePublishableKey || !STRIPE_PRICES.free || !STRIPE_PRICES.entrepreneur) {
+    const error = 'Stripe is not properly configured. Please add required environment variables in Vercel.';
+    logger.error(error);
+    return {
+      sessionId: null,
+      url: null,
+      error: error
+    };
+  }
+
   try {
     logger.log('createCheckoutSession called with priceId:', priceId);
 
