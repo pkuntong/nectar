@@ -37,7 +37,9 @@ check_key() {
 
 echo "🔑 REQUIRED API KEYS:"
 echo "-------------------"
-check_key "GEMINI_API_KEY" "$GEMINI_API_KEY" "true"
+# At least one AI API key is required
+check_key "VITE_GROQ_API_KEY" "$VITE_GROQ_API_KEY" "false"
+check_key "GEMINI_API_KEY" "$GEMINI_API_KEY" "false"
 check_key "VITE_SUPABASE_URL" "$VITE_SUPABASE_URL" "true"
 check_key "VITE_SUPABASE_ANON_KEY" "$VITE_SUPABASE_ANON_KEY" "true"
 check_key "SUPABASE_SERVICE_ROLE_KEY" "$SUPABASE_SERVICE_ROLE_KEY" "true"
@@ -55,10 +57,19 @@ echo ""
 echo "================================"
 echo ""
 
-# Check if required keys are missing
-MISSING_REQUIRED=false
+# Check if at least one AI API key is present
+MISSING_AI_KEY=true
 
-if [ -z "$GEMINI_API_KEY" ] || [[ "$GEMINI_API_KEY" == "your_"* ]] || [[ "$GEMINI_API_KEY" == *"XXXXX"* ]]; then
+if [ ! -z "$VITE_GROQ_API_KEY" ] && [[ "$VITE_GROQ_API_KEY" != "your_"* ]] && [[ "$VITE_GROQ_API_KEY" != *"XXXXX"* ]]; then
+    MISSING_AI_KEY=false
+fi
+
+if [ ! -z "$GEMINI_API_KEY" ] && [[ "$GEMINI_API_KEY" != "your_"* ]] && [[ "$GEMINI_API_KEY" != *"XXXXX"* ]]; then
+    MISSING_AI_KEY=false
+fi
+
+MISSING_REQUIRED=false
+if [ "$MISSING_AI_KEY" = true ]; then
     MISSING_REQUIRED=true
 fi
 
@@ -79,18 +90,27 @@ if [ -z "$STRIPE_SECRET_KEY" ] || [[ "$STRIPE_SECRET_KEY" == "your_"* ]] || [[ "
 fi
 
 if [ "$MISSING_REQUIRED" = true ]; then
-    echo "⚠️  MISSING REQUIRED API KEYS"
+    echo "⚠️  MISSING AI API KEY"
     echo ""
-    echo "Next steps:"
+    echo "You need at least one AI API key (Groq or Gemini):"
     echo "1. Get your API keys from:"
+    echo "   - Groq (FREE, recommended): https://console.groq.com/keys"
     echo "   - Gemini: https://aistudio.google.com/apikey"
-    echo "   - Supabase: https://app.supabase.com (Project Settings > API)"
-    echo "   - Stripe: https://dashboard.stripe.com/test/apikeys"
     echo ""
-    echo "2. Update your .env file with real values"
+    echo "2. Update your .env file with at least one AI key:"
+    echo "   VITE_GROQ_API_KEY=your_groq_key_here"
+    echo "   OR"
+    echo "   GEMINI_API_KEY=your_gemini_key_here"
     echo ""
 else
     echo "✅ All required API keys are present!"
+    echo ""
+    if [ ! -z "$VITE_GROQ_API_KEY" ] && [[ "$VITE_GROQ_API_KEY" != "your_"* ]] && [[ "$VITE_GROQ_API_KEY" != *"XXXXX"* ]]; then
+        echo "✅ Using Groq API (FREE tier - 14,400 requests/day)"
+    fi
+    if [ ! -z "$GEMINI_API_KEY" ] && [[ "$GEMINI_API_KEY" != "your_"* ]] && [[ "$GEMINI_API_KEY" != *"XXXXX"* ]]; then
+        echo "✅ Using Gemini API as fallback"
+    fi
     echo ""
     echo "Optional improvements:"
     echo "- Add RESEND_API_KEY for email functionality"

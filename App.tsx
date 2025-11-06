@@ -15,7 +15,6 @@ import PricingPage from './components/pages/PricingPage';
 import AboutPage from './components/pages/AboutPage';
 import PrivacyPage from './components/pages/PrivacyPage';
 import TermsPage from './components/pages/TermsPage';
-import BlogPage from './components/pages/BlogPage';
 import Login from './components/auth/Login';
 import SignUpComponent from './components/auth/SignUp';
 import { supabase } from './lib/supabase';
@@ -26,7 +25,6 @@ import * as Sentry from '@sentry/react';
 const InfoContent: React.FC<{ type: string }> = ({ type }) => {
     const content: { [key: string]: { title: string; body: string } } = {
         about: { title: "About Us", body: "Nectar was founded with the mission to empower individuals to achieve financial independence by unlocking their unique potential. Our AI-driven platform connects you with personalized, vetted opportunities, making it easier than ever to start a successful side hustle." },
-        blog: { title: "Blog", body: "Explore insights, success stories, and tips for modern hustlers. Learn from real experiences and discover the latest trends in the side hustle economy." },
         privacy: { title: "Privacy Policy", body: "Your privacy is our priority. We use state-of-the-art security to protect your data. This policy outlines how we collect, use, and safeguard your information. We will never sell your data." },
         tos: { title: "Terms of Service", body: "By using Nectar, you agree to our Terms of Service. This document outlines your rights and responsibilities as a user of our platform. Please read it carefully." },
     };
@@ -40,12 +38,12 @@ const InfoContent: React.FC<{ type: string }> = ({ type }) => {
 };
 
 
-type Page = 'home' | 'pricing' | 'about' | 'privacy' | 'terms' | 'blog';
+type Page = 'home' | 'pricing' | 'about' | 'privacy' | 'terms';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [activeModal, setActiveModal] = useState<'login' | 'signup' | 'pricing' | 'info' | null>(null);
-  const [infoType, setInfoType] = useState<'pricing' | 'about' | 'blog' | 'privacy' | 'tos'>('about');
+  const [infoType, setInfoType] = useState<'pricing' | 'about' | 'privacy' | 'tos'>('about');
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [showDashboard, setShowDashboard] = useState(true); // Track if we should show dashboard or homepage
   const [error, setError] = useState<string | null>(null);
@@ -97,13 +95,11 @@ function App() {
     setError(null);
   };
   
-  const handleInfoClick = (type: 'pricing' | 'about' | 'blog' | 'privacy' | 'tos') => {
+  const handleInfoClick = (type: 'pricing' | 'about' | 'privacy' | 'tos') => {
       if (type === 'pricing') {
           setCurrentPage('pricing');
       } else if (type === 'about') {
           setCurrentPage('about');
-      } else if (type === 'blog') {
-          setCurrentPage('blog');
       } else if (type === 'privacy') {
           setCurrentPage('privacy');
       } else if (type === 'tos') {
@@ -140,9 +136,6 @@ function App() {
     }
     if (currentPage === 'about') {
       return <AboutPage onBack={handleBackToHome} />;
-    }
-    if (currentPage === 'blog') {
-      return <BlogPage onClose={handleBackToHome} />;
     }
     if (currentPage === 'privacy') {
       return <PrivacyPage onBack={handleBackToHome} />;

@@ -15,13 +15,13 @@ const supabaseAdmin = createClient(
 // Price ID to plan name mapping
 // These should match the VITE_STRIPE_PRICE_* variables in your frontend .env
 const PRICE_TO_PLAN: Record<string, string> = {
-  // Default test mode IDs (will work if you haven't updated .env yet)
+  // Your CORRECT price IDs (Nectar Sandbox account: acct_1SPz2FRakR1kW1LL)
+  'price_1SQBmxRakR1kW1LLW09tsdF5': 'free',      // Hustler Plan ($0)
+  'price_1SQBnPRakR1kW1LLP2Ru3vYs': 'entrepreneur', // Entrepreneur Plan ($19)
+
+  // Old test mode IDs (keeping for backwards compatibility)
   'price_1SOM6aDPosqqbsKxdrWWe834': 'free',
   'price_1SOM7DDPosqqbsKx8lBviJSS': 'entrepreneur',
-
-  // TODO: Add your LIVE mode price IDs here when you switch to production:
-  // 'price_LIVE_XXX_free': 'free',
-  // 'price_LIVE_XXX_entrepreneur': 'entrepreneur',
 }
 
 // Helper function to get plan name from price ID

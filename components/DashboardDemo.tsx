@@ -8,6 +8,7 @@ import {
   incrementUserUsage,
 } from '../lib/usageLimits';
 import { createCheckoutSession, STRIPE_PRICES } from '../lib/stripe';
+import { generateWithGroq } from '../lib/groq';
 import LimitReachedNotification from './LimitReachedNotification';
 import UsageBanner from './UsageBanner';
 
@@ -212,15 +213,43 @@ Learn More: ${hustle.learnMoreLink}
     setResults([]);
 
     try {
-      if (!process.env.API_KEY) {
-        throw new Error("API key is not configured.");
-      }
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const actualInterest = interest === 'Custom' ? customInterest : interest;
       const actualBudget = budget === 'Custom' ? customBudget : budget;
       const actualTime = time === 'Custom' ? customTime : time;
 
-      const prompt = `Based on the following user profile, generate 3 unique and creative side hustle ideas.
+      const groqPrompt = `Based on the following user profile, generate exactly 3 unique and creative side hustle ideas.
+- Interest: ${actualInterest}
+- Budget: ${actualBudget}
+- Time per week: ${actualTime}
+
+The ideas should be low-cost and suitable for a beginner.
+For each idea, provide a name, a short description, estimated monthly profit, estimated upfront cost, required time commitment per week, a list of 2-3 essential skills, a brief description of potential challenges a beginner might face, and a real, relevant "Learn More" URL (e.g., to a guide, platform, or resource).
+
+Return ONLY a valid JSON array with exactly 3 objects. Each object must have these exact fields:
+- hustleName (string)
+- description (string)
+- estimatedProfit (string)
+- upfrontCost (string)
+- timeCommitment (string)
+- requiredSkills (array of strings)
+- potentialChallenges (string)
+- learnMoreLink (string)
+
+Example format:
+[
+  {
+    "hustleName": "Freelance Graphic Design",
+    "description": "...",
+    "estimatedProfit": "$500-1000/month",
+    "upfrontCost": "$0-50",
+    "timeCommitment": "5-10 hours/week",
+    "requiredSkills": ["Design basics", "Communication"],
+    "potentialChallenges": "...",
+    "learnMoreLink": "https://..."
+  }
+]`;
+
+      const geminiPrompt = `Based on the following user profile, generate 3 unique and creative side hustle ideas.
       - Interest: ${actualInterest}
       - Budget: ${actualBudget}
       - Time per week: ${actualTime}
@@ -228,36 +257,87 @@ Learn More: ${hustle.learnMoreLink}
       The ideas should be low-cost and suitable for a beginner.
       For each idea, provide a name, a short description, estimated monthly profit, estimated upfront cost, required time commitment per week, a list of 2-3 essential skills, a brief description of potential challenges a beginner might face, and a real, relevant "Learn More" URL (e.g., to a guide, platform, or resource).`;
 
-      const responseSchema = {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            hustleName: { type: Type.STRING, description: "The name of the side hustle." },
-            description: { type: Type.STRING, description: "A brief, compelling description." },
-            estimatedProfit: { type: Type.STRING, description: "e.g., '$100 - $500 / month'" },
-            upfrontCost: { type: Type.STRING, description: "e.g., 'Under $50'" },
-            timeCommitment: { type: Type.STRING, description: "e.g., '3-5 hours / week'" },
-            requiredSkills: { type: Type.ARRAY, items: { type: Type.STRING } },
-            potentialChallenges: { type: Type.STRING, description: "A brief summary of potential challenges." },
-            learnMoreLink: { type: Type.STRING, description: "A relevant URL for learning more." }
-          },
-          required: ["hustleName", "description", "estimatedProfit", "upfrontCost", "timeCommitment", "requiredSkills", "potentialChallenges", "learnMoreLink"]
+      let generatedHustles: Hustle[] = [];
+      let usedGroq = false;
+
+      // Try Groq first (free tier, fast)
+      try {
+        const groqApiKey = import.meta.env.VITE_GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
+        if (groqApiKey) {
+          const groqResponse = await generateWithGroq(groqPrompt, 'llama-3.3-70b-versatile', {
+            temperature: 0.8,
+            maxTokens: 2000,
+          });
+
+          // Parse Groq response - it might return JSON wrapped in markdown code blocks
+          let jsonText = groqResponse.trim();
+          if (jsonText.startsWith('```json')) {
+            jsonText = jsonText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+          } else if (jsonText.startsWith('```')) {
+            jsonText = jsonText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+          }
+
+          const parsed = JSON.parse(jsonText);
+          // Handle both direct array and wrapped in object
+          if (Array.isArray(parsed)) {
+            generatedHustles = parsed;
+          } else if (parsed.ideas && Array.isArray(parsed.ideas)) {
+            generatedHustles = parsed.ideas;
+          } else if (parsed.hustles && Array.isArray(parsed.hustles)) {
+            generatedHustles = parsed.hustles;
+          } else {
+            throw new Error('Unexpected response format from Groq');
+          }
+          
+          if (generatedHustles.length > 0) {
+            usedGroq = true;
+          }
         }
-      };
+      } catch (groqError) {
+        console.log('Groq generation failed, falling back to Gemini:', groqError);
+      }
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: responseSchema,
-          temperature: 0.8
-        },
-      });
+      // Fallback to Gemini if Groq failed or not configured
+      if (!usedGroq || generatedHustles.length === 0) {
+        const geminiApiKey = import.meta.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY;
 
-      const resultText = response.text.trim();
-      const generatedHustles = JSON.parse(resultText);
+        if (!geminiApiKey) {
+          throw new Error("No AI API key configured. Please add VITE_GROQ_API_KEY or GEMINI_API_KEY to your .env file.");
+        }
+
+        const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+        const responseSchema = {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              hustleName: { type: Type.STRING, description: "The name of the side hustle." },
+              description: { type: Type.STRING, description: "A brief, compelling description." },
+              estimatedProfit: { type: Type.STRING, description: "e.g., '$100 - $500 / month'" },
+              upfrontCost: { type: Type.STRING, description: "e.g., 'Under $50'" },
+              timeCommitment: { type: Type.STRING, description: "e.g., '3-5 hours / week'" },
+              requiredSkills: { type: Type.ARRAY, items: { type: Type.STRING } },
+              potentialChallenges: { type: Type.STRING, description: "A brief summary of potential challenges." },
+              learnMoreLink: { type: Type.STRING, description: "A relevant URL for learning more." }
+            },
+            required: ["hustleName", "description", "estimatedProfit", "upfrontCost", "timeCommitment", "requiredSkills", "potentialChallenges", "learnMoreLink"]
+          }
+        };
+
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: geminiPrompt,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: responseSchema,
+            temperature: 0.8
+          },
+        });
+
+        const resultText = response.text.trim();
+        generatedHustles = JSON.parse(resultText);
+      }
+
       setResults(generatedHustles);
 
       // STEP 3: Increment usage count (ONLY after successful generation)
