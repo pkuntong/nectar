@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { logger } from '../../lib/logger';
 
 interface SignUpProps {
   onSignUpSuccess: () => void;
@@ -41,7 +42,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUpSuccess, onError }) => {
           });
         } catch (emailError) {
           // Don't fail signup if email fails, just log it
-          console.error('Failed to send welcome email:', emailError);
+          logger.error('Failed to send welcome email:', emailError);
         }
         onSignUpSuccess();
       }

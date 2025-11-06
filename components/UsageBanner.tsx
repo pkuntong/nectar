@@ -5,6 +5,7 @@ import {
   USAGE_LIMITS,
   getDaysUntilReset,
 } from '../lib/usageLimits';
+import { logger } from '../lib/logger';
 
 interface UsageBannerProps {
   userId?: string | null;
@@ -34,7 +35,7 @@ const UsageBanner: React.FC<UsageBannerProps> = ({ userId }) => {
           setRemaining(anonRemaining);
         }
       } catch (error) {
-        console.error('Error fetching usage:', error);
+        logger.error('Error fetching usage:', error);
       } finally {
         setLoading(false);
       }

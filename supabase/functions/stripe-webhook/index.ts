@@ -3,6 +3,10 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.21.0'
 
+// Production-safe logging
+const isDev = Deno.env.get('ENVIRONMENT') !== 'production';
+const log = (...args: any[]) => isDev && console.log(...args);
+
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
 })
@@ -31,7 +35,7 @@ function getPlanFromPriceId(priceId: string): string {
 
 serve(async (req) => {
   // Log all incoming headers for debugging
-  console.log('Request received:', {
+  log('Request received:', {
     method: req.method,
     url: req.url,
     headers: Object.fromEntries(req.headers.entries())
@@ -40,7 +44,7 @@ serve(async (req) => {
   const signature = req.headers.get('stripe-signature')
   const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')
 
-  console.log('Webhook check:', {
+  log('Webhook check:', {
     hasSignature: !!signature,
     hasSecret: !!webhookSecret,
     method: req.method,
@@ -64,14 +68,14 @@ serve(async (req) => {
     const body = await req.text()
     const event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret)
 
-    console.log('Webhook event verified successfully:', event.type)
+    log('Webhook event verified successfully:', event.type)
 
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
         const userId = session.metadata?.user_id
 
-        console.log('checkout.session.completed:', {
+        log('checkout.session.completed:', {
           userId,
           mode: session.mode,
           hasSubscription: !!session.subscription
@@ -91,7 +95,7 @@ serve(async (req) => {
           const priceId = subscription.items.data[0].price.id
           const planName = getPlanFromPriceId(priceId)
 
-          console.log('Subscription details:', {
+          log('Subscription details:', {
             subscriptionId: subscription.id,
             priceId,
             planName,
@@ -113,7 +117,7 @@ serve(async (req) => {
           if (subError) {
             console.error('Error saving subscription:', subError)
           } else {
-            console.log('Subscription saved successfully')
+            log('Subscription saved successfully')
           }
 
           // Update user profile
@@ -127,7 +131,7 @@ serve(async (req) => {
           if (profileError) {
             console.error('Error updating profile:', profileError)
           } else {
-            console.log(`Successfully updated user to ${planName} plan`)
+            log(`Successfully updated user to ${planName} plan`)
           }
         }
         break
@@ -147,7 +151,7 @@ serve(async (req) => {
           const priceId = subscription.items.data[0].price.id
           const planName = getPlanFromPriceId(priceId)
 
-          console.log('Subscription updated:', {
+          log('Subscription updated:', {
             userId: profile.id,
             priceId,
             planName,
@@ -181,7 +185,7 @@ serve(async (req) => {
           if (updateError) {
             console.error('Error updating tier:', updateError)
           } else {
-            console.log(`Updated user tier to ${newTier}`)
+            log(`Updated user tier to ${newTier}`)
           }
         }
         break
@@ -222,14 +226,14 @@ serve(async (req) => {
 
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as Stripe.Invoice
-        console.log('Payment succeeded for invoice:', invoice.id)
+        log('Payment succeeded for invoice:', invoice.id)
         // You can add email notification here
         break
       }
 
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice
-        console.log('Payment failed for invoice:', invoice.id)
+        log('Payment failed for invoice:', invoice.id)
         // You can add email notification here
         break
       }

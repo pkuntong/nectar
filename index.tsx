@@ -1,3 +1,6 @@
+// Import Tailwind CSS
+import './src/index.css';
+
 // Validate environment variables first
 import './lib/env';
 

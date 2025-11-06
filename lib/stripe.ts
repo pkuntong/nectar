@@ -13,13 +13,23 @@ export const stripePromise = stripePublishableKey ? loadStripe(stripePublishable
 // ✅ Price IDs from environment variables
 // Update these in .env file when switching to Stripe LIVE mode
 export const STRIPE_PRICES = {
-  free: import.meta.env.VITE_STRIPE_PRICE_FREE || process.env.VITE_STRIPE_PRICE_FREE || 'price_1SOM6aDPosqqbsKxdrWWe834',
-  entrepreneur: import.meta.env.VITE_STRIPE_PRICE_ENTREPRENEUR || process.env.VITE_STRIPE_PRICE_ENTREPRENEUR || 'price_1SOM7DDPosqqbsKx8lBviJSS'
+  free: import.meta.env.VITE_STRIPE_PRICE_FREE || process.env.VITE_STRIPE_PRICE_FREE,
+  entrepreneur: import.meta.env.VITE_STRIPE_PRICE_ENTREPRENEUR || process.env.VITE_STRIPE_PRICE_ENTREPRENEUR
 };
 
-// Validate price IDs are set
-if (!STRIPE_PRICES.entrepreneur || STRIPE_PRICES.entrepreneur.startsWith('price_xxx')) {
-  console.warn('⚠️ Stripe price IDs not configured. Update VITE_STRIPE_PRICE_* in .env');
+// Validate price IDs are set - fail fast if missing
+if (!STRIPE_PRICES.free || !STRIPE_PRICES.entrepreneur) {
+  const missing = [];
+  if (!STRIPE_PRICES.free) missing.push('VITE_STRIPE_PRICE_FREE');
+  if (!STRIPE_PRICES.entrepreneur) missing.push('VITE_STRIPE_PRICE_ENTREPRENEUR');
+
+  const errorMessage = `❌ Missing required Stripe price IDs in environment:\n${missing.join(', ')}\n\n` +
+    'Add these to your .env file:\n' +
+    'VITE_STRIPE_PRICE_FREE=price_...\n' +
+    'VITE_STRIPE_PRICE_ENTREPRENEUR=price_...';
+
+  console.error(errorMessage);
+  throw new Error(errorMessage);
 }
 
 export const createCheckoutSession = async (priceId: string) => {

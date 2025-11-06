@@ -3,12 +3,40 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.21.0'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+// Production-safe logging
+const isDev = Deno.env.get('ENVIRONMENT') !== 'production';
+const log = (...args: any[]) => isDev && console.log(...args);
+
+// CORS configuration - restrict to your production domain in production
+// During development, allows localhost. In production, only allows your domain.
+const getAllowedOrigin = (requestOrigin: string | null): string => {
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:5173', // Vite default port
+    'https://bbzuoynbdzutgslcvyqw.supabase.co', // Supabase project URL
+    // Add your production domain here when ready:
+    // 'https://yourproductiondomain.com',
+    // 'https://www.yourproductiondomain.com',
+  ];
+
+  // If request origin is in allowed list, use it. Otherwise, use first allowed origin.
+  if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+    return requestOrigin;
+  }
+
+  // Default to localhost for development
+  return allowedOrigins[0];
+};
+
+const getCorsHeaders = (requestOrigin: string | null) => ({
+  'Access-Control-Allow-Origin': getAllowedOrigin(requestOrigin),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+  'Access-Control-Allow-Credentials': 'true',
+})
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })

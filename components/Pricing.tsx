@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { createCheckoutSession, STRIPE_PRICES } from '../lib/stripe';
 import { supabase } from '../lib/supabase';
+import { logger } from '../lib/logger';
 
 interface PlanCardProps {
   planName: string;
@@ -43,13 +44,13 @@ const Pricing: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const handleChoosePlan = async (planName: string, isFree: boolean) => {
-    console.log('handleChoosePlan called:', { planName, isFree });
+    logger.log('handleChoosePlan called:', { planName, isFree });
     setLoading(true);
     setError(null);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      console.log('Current user:', user?.id);
+      logger.log('Current user:', user?.id);
 
       if (!user) {
         const errorMsg = 'Please sign up or log in to continue.';
@@ -61,42 +62,42 @@ const Pricing: React.FC = () => {
 
       if (isFree) {
         // Handle free plan - update user subscription in database
-        console.log('Activating free plan for user:', user.id);
+        logger.log('Activating free plan for user:', user.id);
         const { error: updateError } = await supabase
           .from('user_profiles')
           .update({ subscription_tier: 'free' })
           .eq('id', user.id);
 
         if (updateError) {
-          console.error('Error updating free plan:', updateError);
+          logger.error('Error updating free plan:', updateError);
           throw new Error(`Failed to activate free plan: ${updateError.message}`);
         }
 
         alert('Free plan activated! You now have access to basic features.');
       } else {
         // Handle paid plan - redirect to Stripe checkout
-        console.log('Creating checkout session for paid plan...');
+        logger.log('Creating checkout session for paid plan...');
         const priceId = STRIPE_PRICES.entrepreneur;
-        console.log('Using Price ID:', priceId);
+        logger.log('Using Price ID:', priceId);
 
         const result = await createCheckoutSession(priceId);
-        console.log('Checkout session result:', result);
+        logger.log('Checkout session result:', result);
 
         if (result.error) {
-          console.error('Checkout session error:', result.error);
+          logger.error('Checkout session error:', result.error);
           throw new Error(result.error);
         }
 
         // Redirect to Stripe Checkout using the URL
         if (result.url) {
-          console.log('Redirecting to:', result.url);
+          logger.log('Redirecting to:', result.url);
           window.location.href = result.url;
         } else {
           throw new Error('No checkout URL returned. Please ensure Edge Functions are deployed.');
         }
       }
     } catch (error: any) {
-      console.error('Error in handleChoosePlan:', error);
+      logger.error('Error in handleChoosePlan:', error);
       const errorMessage = error.message || 'Failed to process plan selection';
       setError(errorMessage);
       alert(`Error: ${errorMessage}`);

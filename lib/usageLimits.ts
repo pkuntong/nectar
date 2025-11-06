@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { logger } from './logger';
 
 // Usage limits configuration
 export const USAGE_LIMITS = {
@@ -101,7 +102,7 @@ export const getUserUsageData = async (userId: string): Promise<{
 
     // If profile doesn't exist, create it
     if (!profile) {
-      console.log('Creating user profile for:', userId);
+      logger.log('Creating user profile for:', userId);
       await ensureUserProfile(userId);
 
       // Return defaults for new profile
@@ -123,12 +124,12 @@ export const getUserUsageData = async (userId: string): Promise<{
       tier: profile.subscription_tier || 'free',
     };
   } catch (error) {
-    console.error('Error fetching user usage:', error);
+    logger.error('Error fetching user usage:', error);
     // Create profile on error as well
     try {
       await ensureUserProfile(userId);
     } catch (createError) {
-      console.error('Error creating user profile:', createError);
+      logger.error('Error creating user profile:', createError);
     }
 
     const nextReset = new Date();
@@ -205,7 +206,7 @@ export const incrementUserUsage = async (userId: string): Promise<number> => {
 
     return newCount;
   } catch (error) {
-    console.error('Error incrementing user usage:', error);
+    logger.error('Error incrementing user usage:', error);
     throw error;
   }
 };
@@ -229,7 +230,7 @@ export const getUserRemaining = async (userId: string): Promise<number> => {
 
     return Math.max(0, USAGE_LIMITS.FREE - count);
   } catch (error) {
-    console.error('Error getting user remaining:', error);
+    logger.error('Error getting user remaining:', error);
     return 0;
   }
 };
@@ -253,7 +254,7 @@ export const hasUserReachedLimit = async (userId: string): Promise<boolean> => {
 
     return count >= USAGE_LIMITS.FREE;
   } catch (error) {
-    console.error('Error checking user limit:', error);
+    logger.error('Error checking user limit:', error);
     return true; // Fail safe - block if error
   }
 };

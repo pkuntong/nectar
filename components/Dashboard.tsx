@@ -6,6 +6,7 @@ import DashboardHeader from './DashboardHeader';
 import DashboardDemo from './DashboardDemo';
 import FAQ from './FAQ'; // Import the FAQ component
 import Pricing from './Pricing';
+import { logger } from '../lib/logger';
 
 const DashboardHome: React.FC = () => (
     <div className="p-8 animate-fade-in-up">
@@ -44,7 +45,7 @@ const MyHustles: React.FC = () => {
                 const savedArray = JSON.parse(saved);
                 setSavedHustles(savedArray);
             } catch (e) {
-                console.error('Error loading saved hustles:', e);
+                logger.error('Error loading saved hustles:', e);
             }
         }
     }, []);
@@ -133,7 +134,7 @@ const SettingsContent: React.FC<{ onProfileUpdate?: () => void }> = ({ onProfile
                 }
             }
         } catch (error) {
-            console.error('Error loading profile:', error);
+            logger.error('Error loading profile:', error);
         }
     };
 
@@ -188,7 +189,7 @@ const SettingsContent: React.FC<{ onProfileUpdate?: () => void }> = ({ onProfile
             await supabase.auth.signOut();
             window.location.href = '/';
         } catch (error: any) {
-            console.error('Delete error:', error);
+            logger.error('Delete error:', error);
             
             // Check if the error is that the Edge Function doesn't exist
             if (error?.message?.includes('Function not found') || error?.message?.includes('404')) {
@@ -216,13 +217,13 @@ const SettingsContent: React.FC<{ onProfileUpdate?: () => void }> = ({ onProfile
                     .eq('id', user.id);
 
                 if (error) {
-                    console.error('Error saving notification preferences:', error);
+                    logger.error('Error saving notification preferences:', error);
                     // Revert on error
                     setNotifications(notifications);
                 }
             }
         } catch (error) {
-            console.error('Error updating notifications:', error);
+            logger.error('Error updating notifications:', error);
             // Revert on error
             setNotifications(notifications);
         }
@@ -824,7 +825,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToHome }) => 
             }
           }
         } catch (error) {
-          console.error('Error verifying payment:', error);
+          logger.error('Error verifying payment:', error);
         } finally {
           setIsVerifyingPayment(false);
           // Clean up URL
@@ -842,7 +843,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToHome }) => 
         setUserName(name);
       }
     } catch (error) {
-      console.error('Error loading user name:', error);
+      logger.error('Error loading user name:', error);
     }
   };
 

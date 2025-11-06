@@ -1,125 +1,149 @@
 #!/bin/bash
+# verify-api-keys.sh - Run before every deployment to verify production readiness
 
-echo "🔍 Nectar API Key Verification"
-echo "================================"
+echo "🔍 Verifying Production Environment Variables..."
 echo ""
 
-# Load .env file
-if [ -f .env ]; then
-    source .env
-else
-    echo "❌ .env file not found!"
-    echo "   Create .env file from .env.example"
-    exit 1
+# Function to check if a file contains test mode keys
+check_test_keys() {
+    local file=$1
+    local errors=0
+
+    if [ ! -f "$file" ]; then
+        echo "⚠️  Warning: $file not found"
+        return 0
+    fi
+
+    echo "Checking $file..."
+
+    # Check for Stripe test mode keys
+    if grep -q "pk_test_" "$file" 2>/dev/null; then
+        echo "❌ ERROR: Stripe TEST publishable key found in $file"
+        echo "   Update to LIVE key (pk_live_...) before deploying to production"
+        errors=$((errors + 1))
+    fi
+
+    if grep -q "sk_test_" "$file" 2>/dev/null; then
+        echo "❌ ERROR: Stripe TEST secret key found in $file"
+        echo "   Update to LIVE key (sk_live_...) before deploying to production"
+        errors=$((errors + 1))
+    fi
+
+    if [ $errors -eq 0 ]; then
+        echo "✅ No test mode keys found in $file"
+    fi
+
+    return $errors
+}
+
+# Check .env file (should have test keys for development)
+if [ -f ".env" ]; then
+    echo "ℹ️  .env file exists (for development - should have TEST keys)"
 fi
 
-echo "Checking API keys in .env file..."
+# Check .env.production file (must have live keys)
+total_errors=0
+
+if [ -f ".env.production" ]; then
+    check_test_keys ".env.production"
+    total_errors=$?
+else
+    echo "⚠️  Warning: .env.production file not found"
+    echo "   Create .env.production with LIVE mode keys for production deployment"
+fi
+
 echo ""
+echo "🔍 Checking Supabase Edge Function secrets..."
 
-# Check each API key
-check_key() {
-    local key_name=$1
-    local key_value=$2
-    local required=$3
+# Check if Supabase CLI is installed
+if ! command -v supabase &> /dev/null; then
+    echo "⚠️  Warning: Supabase CLI not installed"
+    echo "   Install with: npm install -g supabase"
+    echo "   Skipping Supabase secrets check..."
+else
+    # Try to list secrets (requires being logged in and linked)
+    if supabase secrets list &> /dev/null; then
+        SECRETS=$(supabase secrets list 2>/dev/null)
 
-    if [ -z "$key_value" ] || [ "$key_value" == "your_${key_name,,}_here" ] || [[ "$key_value" == *"XXXXX"* ]]; then
-        if [ "$required" == "true" ]; then
-            echo "❌ $key_name - MISSING or placeholder (REQUIRED)"
+        # Check for critical secrets
+        if echo "$SECRETS" | grep -q "STRIPE_SECRET_KEY"; then
+            echo "✅ STRIPE_SECRET_KEY is set in Supabase"
         else
-            echo "⚠️  $key_name - MISSING or placeholder (Optional)"
+            echo "❌ ERROR: STRIPE_SECRET_KEY not set in Supabase Edge Functions"
+            echo "   Run: supabase secrets set STRIPE_SECRET_KEY=sk_live_..."
+            total_errors=$((total_errors + 1))
+        fi
+
+        if echo "$SECRETS" | grep -q "STRIPE_WEBHOOK_SECRET"; then
+            echo "✅ STRIPE_WEBHOOK_SECRET is set in Supabase"
+        else
+            echo "❌ ERROR: STRIPE_WEBHOOK_SECRET not set in Supabase Edge Functions"
+            echo "   Run: supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_..."
+            total_errors=$((total_errors + 1))
+        fi
+
+        if echo "$SECRETS" | grep -q "RESEND_API_KEY"; then
+            echo "✅ RESEND_API_KEY is set in Supabase"
+        else
+            echo "⚠️  Warning: RESEND_API_KEY not set in Supabase Edge Functions"
+            echo "   Email functionality may not work"
         fi
     else
-        # Show first 10 chars only for security
-        local preview="${key_value:0:20}..."
-        echo "✅ $key_name - Present ($preview)"
+        echo "⚠️  Warning: Could not check Supabase secrets"
+        echo "   Make sure you're logged in: supabase login"
+        echo "   And linked to project: supabase link"
+    fi
+fi
+
+echo ""
+echo "🔍 Checking for console.log statements in production code..."
+
+# Count console.log in source files (excluding node_modules, dist, and this script)
+CONSOLE_LOGS=$(grep -r "console\.log" --include="*.tsx" --include="*.ts" --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=supabase . 2>/dev/null | wc -l)
+
+if [ "$CONSOLE_LOGS" -gt 0 ]; then
+    echo "⚠️  Warning: Found $CONSOLE_LOGS console.log statements in source code"
+    echo "   Consider replacing with logger.log for production builds"
+else
+    echo "✅ No console.log statements found in source code"
+fi
+
+echo ""
+echo "🔍 Checking required environment variables..."
+
+# Function to check if env var is set in .env.production
+check_env_var() {
+    local var_name=$1
+    local file=".env.production"
+
+    if [ -f "$file" ]; then
+        if grep -q "^${var_name}=" "$file" 2>/dev/null; then
+            echo "✅ $var_name is set"
+        else
+            echo "❌ ERROR: $var_name not found in $file"
+            total_errors=$((total_errors + 1))
+        fi
     fi
 }
 
-echo "🔑 REQUIRED API KEYS:"
-echo "-------------------"
-# At least one AI API key is required
-check_key "VITE_GROQ_API_KEY" "$VITE_GROQ_API_KEY" "false"
-check_key "GEMINI_API_KEY" "$GEMINI_API_KEY" "false"
-check_key "VITE_SUPABASE_URL" "$VITE_SUPABASE_URL" "true"
-check_key "VITE_SUPABASE_ANON_KEY" "$VITE_SUPABASE_ANON_KEY" "true"
-check_key "SUPABASE_SERVICE_ROLE_KEY" "$SUPABASE_SERVICE_ROLE_KEY" "true"
-check_key "VITE_STRIPE_PUBLISHABLE_KEY" "$VITE_STRIPE_PUBLISHABLE_KEY" "true"
-check_key "STRIPE_SECRET_KEY" "$STRIPE_SECRET_KEY" "true"
-
-echo ""
-echo "📧 OPTIONAL API KEYS:"
-echo "--------------------"
-check_key "RESEND_API_KEY" "$RESEND_API_KEY" "false"
-check_key "VITE_SENTRY_DSN" "$VITE_SENTRY_DSN" "false"
-check_key "SENTRY_AUTH_TOKEN" "$SENTRY_AUTH_TOKEN" "false"
+if [ -f ".env.production" ]; then
+    check_env_var "VITE_STRIPE_PUBLISHABLE_KEY"
+    check_env_var "VITE_STRIPE_PRICE_FREE"
+    check_env_var "VITE_STRIPE_PRICE_ENTREPRENEUR"
+    check_env_var "VITE_SUPABASE_URL"
+    check_env_var "VITE_SUPABASE_ANON_KEY"
+    check_env_var "VITE_SENTRY_DSN"
+fi
 
 echo ""
 echo "================================"
-echo ""
 
-# Check if at least one AI API key is present
-MISSING_AI_KEY=true
-
-if [ ! -z "$VITE_GROQ_API_KEY" ] && [[ "$VITE_GROQ_API_KEY" != "your_"* ]] && [[ "$VITE_GROQ_API_KEY" != *"XXXXX"* ]]; then
-    MISSING_AI_KEY=false
-fi
-
-if [ ! -z "$GEMINI_API_KEY" ] && [[ "$GEMINI_API_KEY" != "your_"* ]] && [[ "$GEMINI_API_KEY" != *"XXXXX"* ]]; then
-    MISSING_AI_KEY=false
-fi
-
-MISSING_REQUIRED=false
-if [ "$MISSING_AI_KEY" = true ]; then
-    MISSING_REQUIRED=true
-fi
-
-if [ -z "$VITE_SUPABASE_URL" ] || [[ "$VITE_SUPABASE_URL" == "your_"* ]] || [[ "$VITE_SUPABASE_URL" == *"XXXXX"* ]]; then
-    MISSING_REQUIRED=true
-fi
-
-if [ -z "$VITE_SUPABASE_ANON_KEY" ] || [[ "$VITE_SUPABASE_ANON_KEY" == "your_"* ]] || [[ "$VITE_SUPABASE_ANON_KEY" == *"XXXXX"* ]]; then
-    MISSING_REQUIRED=true
-fi
-
-if [ -z "$VITE_STRIPE_PUBLISHABLE_KEY" ] || [[ "$VITE_STRIPE_PUBLISHABLE_KEY" == "your_"* ]] || [[ "$VITE_STRIPE_PUBLISHABLE_KEY" == *"XXXXX"* ]]; then
-    MISSING_REQUIRED=true
-fi
-
-if [ -z "$STRIPE_SECRET_KEY" ] || [[ "$STRIPE_SECRET_KEY" == "your_"* ]] || [[ "$STRIPE_SECRET_KEY" == *"XXXXX"* ]]; then
-    MISSING_REQUIRED=true
-fi
-
-if [ "$MISSING_REQUIRED" = true ]; then
-    echo "⚠️  MISSING AI API KEY"
-    echo ""
-    echo "You need at least one AI API key (Groq or Gemini):"
-    echo "1. Get your API keys from:"
-    echo "   - Groq (FREE, recommended): https://console.groq.com/keys"
-    echo "   - Gemini: https://aistudio.google.com/apikey"
-    echo ""
-    echo "2. Update your .env file with at least one AI key:"
-    echo "   VITE_GROQ_API_KEY=your_groq_key_here"
-    echo "   OR"
-    echo "   GEMINI_API_KEY=your_gemini_key_here"
-    echo ""
+if [ $total_errors -eq 0 ]; then
+    echo "✅ All checks passed!"
+    echo "🚀 Ready to deploy to production"
+    exit 0
 else
-    echo "✅ All required API keys are present!"
-    echo ""
-    if [ ! -z "$VITE_GROQ_API_KEY" ] && [[ "$VITE_GROQ_API_KEY" != "your_"* ]] && [[ "$VITE_GROQ_API_KEY" != *"XXXXX"* ]]; then
-        echo "✅ Using Groq API (FREE tier - 14,400 requests/day)"
-    fi
-    if [ ! -z "$GEMINI_API_KEY" ] && [[ "$GEMINI_API_KEY" != "your_"* ]] && [[ "$GEMINI_API_KEY" != *"XXXXX"* ]]; then
-        echo "✅ Using Gemini API as fallback"
-    fi
-    echo ""
-    echo "Optional improvements:"
-    echo "- Add RESEND_API_KEY for email functionality"
-    echo "- Add VITE_SENTRY_DSN for error tracking"
-    echo ""
+    echo "❌ Found $total_errors error(s)"
+    echo "⚠️  Fix the errors above before deploying to production"
+    exit 1
 fi
-
-echo "📚 For detailed setup instructions, see:"
-echo "   - SETUP.md"
-echo "   - STRIPE_SETUP.md"
-echo "   - DEPLOY_EDGE_FUNCTIONS.md"
-echo ""

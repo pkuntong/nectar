@@ -11,6 +11,7 @@ import { createCheckoutSession, STRIPE_PRICES } from '../lib/stripe';
 import { generateWithGroq } from '../lib/groq';
 import LimitReachedNotification from './LimitReachedNotification';
 import UsageBanner from './UsageBanner';
+import { logger } from '../lib/logger';
 
 interface Hustle {
   hustleName: string;
@@ -52,7 +53,7 @@ const DashboardDemo: React.FC<DashboardDemoProps> = ({ onSignUpClick, onPricingC
         const savedArray = JSON.parse(saved);
         setSavedHustles(new Set(savedArray));
       } catch (e) {
-        console.error('Error loading saved hustles:', e);
+        logger.error('Error loading saved hustles:', e);
       }
     }
 
@@ -93,7 +94,7 @@ Learn More: ${hustle.learnMoreLink}
             setCopiedIndex(null);
         }, 2000); // Reset after 2 seconds
     }).catch(err => {
-        console.error('Failed to copy text: ', err);
+        logger.error('Failed to copy text: ', err);
         setError("Could not copy to clipboard.");
     });
   };
@@ -204,7 +205,7 @@ Learn More: ${hustle.learnMoreLink}
         }
       }
     } catch (limitError) {
-      console.error('Error checking limit:', limitError);
+      logger.error('Error checking limit:', limitError);
     }
 
     // STEP 2: Proceed with generation
@@ -294,7 +295,7 @@ Example format:
           }
         }
       } catch (groqError) {
-        console.log('Groq generation failed, falling back to Gemini:', groqError);
+        logger.log('Groq generation failed, falling back to Gemini:', groqError);
       }
 
       // Fallback to Gemini if Groq failed or not configured
@@ -348,11 +349,11 @@ Example format:
           incrementAnonymousUsage();
         }
       } catch (usageError) {
-        console.error('Error incrementing usage:', usageError);
+        logger.error('Error incrementing usage:', usageError);
       }
 
     } catch (err) {
-      console.error("Error generating content:", err);
+      logger.error("Error generating content:", err);
       let friendlyError = "Sorry, our AI is taking a quick break. Please try again in a moment.";
       if (err instanceof Error && err.message.includes("API key")) {
           friendlyError = "The AI service is not configured correctly. Please contact support.";
