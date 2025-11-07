@@ -54,7 +54,19 @@ const Footer: React.FC<FooterProps> = ({ onInfoClick }) => {
                         <h3 className="font-bold text-light-text mb-6 text-lg">Company</h3>
                         <ul className="space-y-3">
                             <li><a href="#" onClick={(e) => handleInfoClick(e, 'about')} className="text-medium-text hover:text-brand-orange-light transition-colors duration-300 inline-block hover:translate-x-1">About Us</a></li>
-                            <li><a href="mailto:support@nectar.ai" className="text-medium-text hover:text-brand-orange-light transition-colors duration-300 inline-block hover:translate-x-1">Contact</a></li>
+                            <li>
+                                <a
+                                    href="#"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        // Opens email client with pre-filled subject for privacy
+                                        window.location.href = 'mailto:contact@nectarforge.app?subject=Contact%20from%20Nectar%20Forge';
+                                    }}
+                                    className="text-medium-text hover:text-brand-orange-light transition-colors duration-300 inline-block hover:translate-x-1"
+                                >
+                                    Contact
+                                </a>
+                            </li>
                         </ul>
                     </div>
                     <div>

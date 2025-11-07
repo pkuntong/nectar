@@ -1,52 +1,51 @@
 import React from 'react';
 
-interface TestimonialCardProps {
-  quote: string;
-  name: string;
-  role: string;
-  avatarUrl: string;
-}
-
-const TestimonialCard: React.FC<TestimonialCardProps> = ({ quote, name, role, avatarUrl }) => (
-  <div className="bg-dark-card border border-dark-card-border rounded-xl shadow-lg p-8 transform hover:scale-105 transition-transform duration-300">
-    <p className="text-medium-text mb-6 text-lg">"{quote}"</p>
-    <div className="flex items-center">
-      <img className="w-12 h-12 rounded-full mr-4 object-cover" src={avatarUrl} alt={name} />
-      <div>
-        <p className="font-bold text-light-text">{name}</p>
-        <p className="text-sm text-medium-text">{role}</p>
-      </div>
-    </div>
-  </div>
-);
-
-
 const Testimonials: React.FC = () => {
   return (
-    <section className="py-20">
-      <div className="container mx-auto px-6">
-        <div className="text-center max-w-2xl mx-auto mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-light-text">Loved by Hustlers Everywhere</h2>
+    <section className="py-24 px-6 bg-dark-bg">
+      <div className="container mx-auto max-w-6xl">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl md:text-5xl font-bold text-light-text mb-6">
+            Built for Real Hustlers
+          </h2>
+          <p className="text-xl text-medium-text max-w-3xl mx-auto">
+            We're building Nectar Forge with one mission: help you discover and validate your next income stream with AI-powered insights.
+          </p>
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <TestimonialCard
-            quote="Nectar found me a freelance writing gig that perfectly matched my skills. It's now my main source of income!"
-            name="Sarah J."
-            role="Freelance Writer"
-            avatarUrl="https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=80"
-          />
-          <TestimonialCard
-            quote="I wanted to dip my toes into investing but didn't know where to start. Nectar's micro-investment suggestions were a game-changer."
-            name="Michael B."
-            role="Software Developer"
-            avatarUrl="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=80"
-          />
-          <TestimonialCard
-            quote="The sheer quality of opportunities is amazing. I've tried other platforms, and none come close to the personalization of Nectar."
-            name="Emily R."
-            role="Marketing Manager"
-            avatarUrl="https://images.unsplash.com/photo-1580489944761-15a19d654956?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=80"
-          />
+
+        <div className="grid md:grid-cols-3 gap-8">
+          <div className="bg-dark-card border border-dark-card-border p-8 rounded-lg">
+            <div className="text-brand-orange text-4xl font-bold mb-4">AI-Powered</div>
+            <h3 className="text-xl font-bold text-light-text mb-3">Smart Recommendations</h3>
+            <p className="text-medium-text">
+              Our AI analyzes your skills, interests, and market trends to suggest side hustles that actually fit your lifestyle.
+            </p>
+          </div>
+
+          <div className="bg-dark-card border border-dark-card-border p-8 rounded-lg">
+            <div className="text-brand-orange text-4xl font-bold mb-4">No BS</div>
+            <h3 className="text-xl font-bold text-light-text mb-3">Honest Guidance</h3>
+            <p className="text-medium-text">
+              We don't promise overnight success. We provide real strategies, vetted opportunities, and transparent expectations.
+            </p>
+          </div>
+
+          <div className="bg-dark-card border border-dark-card-border p-8 rounded-lg">
+            <div className="text-brand-orange text-4xl font-bold mb-4">Your Success</div>
+            <h3 className="text-xl font-bold text-light-text mb-3">We Grow Together</h3>
+            <p className="text-medium-text">
+              As you build your side hustle, you're helping us build a better platform. Real feedback. Real improvements. Real results.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-16 bg-gradient-to-r from-brand-orange/10 to-brand-orange-light/10 border border-brand-orange/20 p-8 rounded-lg text-center">
+          <p className="text-lg text-light-text mb-4">
+            <span className="font-bold">Early Access:</span> You're using Nectar Forge during our growth phase.
+          </p>
+          <p className="text-medium-text">
+            Your feedback shapes our features. Your success stories will inspire our community. Join us on this journey.
+          </p>
         </div>
       </div>
     </section>

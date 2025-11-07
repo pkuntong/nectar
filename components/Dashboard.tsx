@@ -11,12 +11,7 @@ import { logger } from '../lib/logger';
 const DashboardHome: React.FC = () => (
     <div className="p-8 animate-fade-in-up">
         <h2 className="text-3xl font-bold text-light-text mb-6">Overview</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-dark-card border border-dark-card-border p-6 rounded-lg">
-                <h3 className="text-medium-text font-semibold">Total Earnings (Mock)</h3>
-                <p className="text-3xl font-bold text-light-text mt-2">$1,234.56</p>
-                <p className="text-sm text-green-400 mt-1">+12.5% this month</p>
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-dark-card border border-dark-card-border p-6 rounded-lg">
                 <h3 className="text-medium-text font-semibold">Active Hustles</h3>
                 <p className="text-3xl font-bold text-light-text mt-2">3</p>
@@ -30,13 +25,14 @@ const DashboardHome: React.FC = () => (
         </div>
         <div className="mt-8 bg-dark-card border border-dark-card-border p-6 rounded-lg">
             <h3 className="text-xl font-bold text-light-text mb-4">Your Recent Activity</h3>
-            <p className="text-medium-text">Activity feed will be shown here.</p>
+            <p className="text-medium-text">Your recent activity will appear here as you use the platform. Try generating some side hustle ideas to get started!</p>
         </div>
     </div>
 );
 
 const MyHustles: React.FC = () => {
     const [savedHustles, setSavedHustles] = useState<string[]>([]);
+    const [expandedHustle, setExpandedHustle] = useState<string | null>(null);
 
     useEffect(() => {
         const saved = localStorage.getItem('nectar_saved_hustles');
@@ -54,6 +50,13 @@ const MyHustles: React.FC = () => {
         const updated = savedHustles.filter(name => name !== hustleName);
         setSavedHustles(updated);
         localStorage.setItem('nectar_saved_hustles', JSON.stringify(updated));
+        if (expandedHustle === hustleName) {
+            setExpandedHustle(null);
+        }
+    };
+
+    const handleView = (hustleName: string) => {
+        setExpandedHustle(expandedHustle === hustleName ? null : hustleName);
     };
 
     if (savedHustles.length === 0) {
@@ -75,19 +78,62 @@ const MyHustles: React.FC = () => {
             <h2 className="text-3xl font-bold text-light-text mb-6">My Hustles</h2>
             <div className="space-y-4">
                 {savedHustles.map((hustleName, index) => (
-                    <div key={index} className="bg-dark-card border border-dark-card-border p-6 rounded-lg flex justify-between items-center">
-                        <div>
-                            <h3 className="text-xl font-bold text-light-text">{hustleName}</h3>
-                            <p className="text-medium-text mt-2">Saved hustle opportunity</p>
+                    <div key={index} className="bg-dark-card border border-dark-card-border rounded-lg overflow-hidden">
+                        <div className="p-6 flex justify-between items-center">
+                            <div className="flex-1">
+                                <h3 className="text-xl font-bold text-light-text">{hustleName}</h3>
+                                <p className="text-medium-text mt-2">Click "View Details" to see the full hustle information</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => handleView(hustleName)}
+                                    className="bg-brand-orange text-white font-semibold py-2 px-4 rounded-md hover:opacity-90 transition-opacity"
+                                >
+                                    {expandedHustle === hustleName ? 'Hide Details' : 'View Details'}
+                                </button>
+                                <button
+                                    onClick={() => handleRemove(hustleName)}
+                                    className="border border-red-400 text-red-400 hover:bg-red-400 hover:text-white transition-colors py-2 px-4 rounded-md font-semibold"
+                                >
+                                    Delete
+                                </button>
+                            </div>
                         </div>
-                        <button 
-                            onClick={() => handleRemove(hustleName)}
-                            className="text-red-400 hover:text-red-500 transition-colors"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                        </button>
+
+                        {expandedHustle === hustleName && (
+                            <div className="border-t border-dark-card-border p-6 bg-dark-bg/50 animate-fade-in-up">
+                                <div className="space-y-4">
+                                    <div>
+                                        <h4 className="text-lg font-bold text-brand-orange mb-2">About This Hustle</h4>
+                                        <p className="text-medium-text">
+                                            {hustleName} is a great side hustle opportunity. To get the full detailed plan and recommendations,
+                                            visit the "Find Hustles" tab and generate a new plan with your specific requirements.
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <h4 className="text-lg font-bold text-brand-orange mb-2">Next Steps</h4>
+                                        <ul className="list-disc list-inside space-y-2 text-medium-text">
+                                            <li>Research the market demand in your area</li>
+                                            <li>Validate your idea with potential customers</li>
+                                            <li>Create a simple business plan</li>
+                                            <li>Start with a minimal viable product (MVP)</li>
+                                            <li>Get your first customer within 30 days</li>
+                                        </ul>
+                                    </div>
+                                    <div className="pt-4">
+                                        <a
+                                            href="/dashboard?tab=find"
+                                            className="inline-flex items-center gap-2 text-brand-orange hover:text-brand-orange-light transition-colors font-semibold"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clipRule="evenodd" />
+                                            </svg>
+                                            Generate a detailed plan for this hustle
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>
@@ -96,7 +142,7 @@ const MyHustles: React.FC = () => {
 };
 
 const SettingsContent: React.FC<{ onProfileUpdate?: () => void }> = ({ onProfileUpdate }) => {
-    const [notifications, setNotifications] = useState({ weekly: true, product: false, offers: true });
+    const [notifications, setNotifications] = useState({ weekly: false, product: false, offers: false });
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [subscriptionTier, setSubscriptionTier] = useState<string>('free');
@@ -510,7 +556,7 @@ const HelpSupportContent: React.FC = () => {
                      <div className="bg-dark-card border border-dark-card-border p-6 rounded-lg">
                         <h3 className="text-xl font-bold text-light-text mb-4">Contact Us</h3>
                         <p className="text-medium-text mb-4">Can't find an answer? Our team is here to help.</p>
-                        <a href="mailto:support@nectar.ai" className="inline-block w-full text-center bg-brand-orange text-white font-bold py-3 px-5 rounded-md hover:opacity-90 transition-opacity">
+                        <a href="mailto:contact@nectarforge.app?subject=Support%20Request" className="inline-block w-full text-center bg-brand-orange text-white font-bold py-3 px-5 rounded-md hover:opacity-90 transition-opacity">
                             Email Support
                         </a>
                      </div>
@@ -528,239 +574,12 @@ const HelpSupportContent: React.FC = () => {
 };
 
 const CommunityContent: React.FC = () => {
-    const [view, setView] = useState('main');
-    const [selectedStory, setSelectedStory] = useState<number | null>(null);
-
-    const handleLinkClick = (type: string) => {
-        setView(type.toLowerCase().replace(/\s+/g, '-')); // Convert to kebab-case
-    };
-
-    // Success Stories data
-    const successStories = [
-        {
-            id: 1,
-            name: "Sarah Chen",
-            hustle: "Freelance Graphic Design",
-            location: "San Francisco, CA",
-            image: "🎨",
-            timeline: "Started 6 months ago",
-            earnings: "$8,500/month",
-            quote: "Nectar helped me turn my passion for design into a profitable side business. I'm now making more from freelancing than my full-time job!",
-            journey: [
-                "Started with 0 clients, built portfolio through Nectar recommendations",
-                "Focused on logo design and brand identity for small businesses",
-                "Gradually increased rates as demand grew",
-                "Now working with 15+ recurring clients"
-            ]
-        },
-        {
-            id: 2,
-            name: "Marcus Johnson",
-            hustle: "Dropshipping Business",
-            location: "Austin, TX",
-            image: "📦",
-            timeline: "Started 4 months ago",
-            earnings: "$12,000/month",
-            quote: "The resources on Nectar gave me the confidence to start. I scaled from $0 to $12k in just 4 months!",
-            journey: [
-                "Found niche in eco-friendly home products",
-                "Started with $500 initial investment",
-                "Used Facebook and Instagram ads for marketing",
-                "Expanded to three product lines"
-            ]
-        },
-        {
-            id: 3,
-            name: "Priya Patel",
-            hustle: "Online Tutoring",
-            location: "New York, NY",
-            image: "📚",
-            timeline: "Started 8 months ago",
-            earnings: "$6,200/month",
-            quote: "Teaching online gives me flexibility to travel while earning. Nectar's guides helped me set up everything perfectly.",
-            journey: [
-                "Specialized in SAT/ACT prep for high schoolers",
-                "Started with 3 students via referrals",
-                "Built online course library",
-                "Now teaching 25+ students weekly"
-            ]
-        },
-        {
-            id: 4,
-            name: "David Kim",
-            hustle: "Voiceover Services",
-            location: "Los Angeles, CA",
-            image: "🎤",
-            timeline: "Started 1 year ago",
-            earnings: "$15,000/month",
-            quote: "Nectar's challenge pushed me to start. I never thought my voice could be worth this much!",
-            journey: [
-                "Invested in home studio setup ($2,000)",
-                "Created demo reels for different industries",
-                "Joined Fiverr and Voice123 platforms",
-                "Now booked 2-3 weeks in advance"
-            ]
-        }
-    ];
-
-    // Main community view
-    if (view === 'main') {
-        return (
-            <div className="p-8 animate-fade-in-up">
-                <h2 className="text-3xl font-bold text-light-text mb-6">Community</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <div className="bg-dark-card border border-dark-card-border p-6 rounded-lg hover:border-brand-orange transition-colors cursor-pointer" onClick={() => handleLinkClick('Success Stories')}>
-                        <h3 className="text-xl font-bold text-light-text mb-3">Success Stories</h3>
-                        <p className="text-medium-text mb-4">Read about how others built successful side hustles with Nectar.</p>
-                        <button className="text-brand-orange-light hover:underline font-medium">View Stories →</button>
-                    </div>
-                    <div className="bg-dark-card border border-dark-card-border p-6 rounded-lg hover:border-brand-orange transition-colors cursor-pointer" onClick={() => handleLinkClick('Discussion Forum')}>
-                        <h3 className="text-xl font-bold text-light-text mb-3">Discussion Forum</h3>
-                        <p className="text-medium-text mb-4">Connect with fellow hustlers and share tips.</p>
-                        <button className="text-brand-orange-light hover:underline font-medium">Join Discussion →</button>
-                    </div>
-                    <div className="bg-dark-card border border-dark-card-border p-6 rounded-lg hover:border-brand-orange transition-colors cursor-pointer" onClick={() => handleLinkClick('Weekly Challenge')}>
-                        <h3 className="text-xl font-bold text-light-text mb-3">Weekly Challenge</h3>
-                        <p className="text-medium-text mb-4">Participate in our weekly side hustle challenges.</p>
-                        <button className="text-brand-orange-light hover:underline font-medium">See Challenge →</button>
-                    </div>
-                    <div className="bg-dark-card border border-dark-card-border p-6 rounded-lg hover:border-brand-orange transition-colors cursor-pointer" onClick={() => handleLinkClick('Resource Library')}>
-                        <h3 className="text-xl font-bold text-light-text mb-3">Resource Library</h3>
-                        <p className="text-medium-text mb-4">Access free guides and templates.</p>
-                        <button className="text-brand-orange-light hover:underline font-medium">Browse Resources →</button>
-                    </div>
-                    <div className="bg-dark-card border border-dark-card-border p-6 rounded-lg hover:border-brand-orange transition-colors cursor-pointer" onClick={() => handleLinkClick('Expert Office Hours')}>
-                        <h3 className="text-xl font-bold text-light-text mb-3">Expert Office Hours</h3>
-                        <p className="text-medium-text mb-4">Book time with side hustle experts.</p>
-                        <button className="text-brand-orange-light hover:underline font-medium">Schedule Call →</button>
-                    </div>
-                    <div className="bg-dark-card border border-dark-card-border p-6 rounded-lg hover:border-brand-orange transition-colors cursor-pointer" onClick={() => handleLinkClick('Networking Events')}>
-                        <h3 className="text-xl font-bold text-light-text mb-3">Networking Events</h3>
-                        <p className="text-medium-text mb-4">Join virtual and in-person meetups.</p>
-                        <button className="text-brand-orange-light hover:underline font-medium">View Events →</button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // Success Stories detailed view
-    if (view === 'success-stories') {
-        if (selectedStory !== null) {
-            const story = successStories[selectedStory];
-            return (
-                <div className="p-8 animate-fade-in-up">
-                    <button onClick={() => setSelectedStory(null)} className="mb-6 flex items-center text-medium-text hover:text-light-text transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        Back to Stories
-                    </button>
-                    
-                    <div className="max-w-4xl mx-auto">
-                        <div className="bg-dark-card border border-dark-card-border p-8 rounded-lg mb-6">
-                            <div className="text-6xl mb-4">{story.image}</div>
-                            <h2 className="text-3xl font-bold text-light-text mb-2">{story.name}</h2>
-                            <p className="text-xl text-medium-text mb-4">{story.hustle}</p>
-                            <div className="flex items-center space-x-4 text-medium-text mb-6">
-                                <span className="flex items-center">
-                                    <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                                    {story.location}
-                                </span>
-                                <span>•</span>
-                                <span>{story.timeline}</span>
-                            </div>
-                            
-                            <div className="bg-brand-orange/10 border border-brand-orange/30 p-6 rounded-lg mb-6">
-                                <p className="text-light-text text-lg italic mb-4">"{story.quote}"</p>
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm text-medium-text">Monthly Earnings</p>
-                                        <p className="text-2xl font-bold text-brand-orange">{story.earnings}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <h3 className="text-2xl font-bold text-light-text mb-4">The Journey</h3>
-                            <div className="space-y-4">
-                                {story.journey.map((step, index) => (
-                                    <div key={index} className="flex items-start">
-                                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-brand-orange text-white flex items-center justify-center font-bold mr-4">
-                                            {index + 1}
-                                        </div>
-                                        <p className="text-medium-text flex-1 pt-1">{step}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
-
-        return (
-            <div className="p-8 animate-fade-in-up">
-                <button onClick={() => setView('main')} className="mb-6 flex items-center text-medium-text hover:text-light-text transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                    </svg>
-                    Back to Community
-                </button>
-
-                <h2 className="text-3xl font-bold text-light-text mb-6">Success Stories</h2>
-                <p className="text-lg text-medium-text mb-8">Get inspired by real stories from Nectar users who turned their side hustles into success.</p>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {successStories.map((story) => (
-                        <div 
-                            key={story.id} 
-                            className="bg-dark-card border border-dark-card-border p-6 rounded-lg hover:border-brand-orange transition-colors cursor-pointer"
-                            onClick={() => setSelectedStory(story.id - 1)}
-                        >
-                            <div className="text-5xl mb-4">{story.image}</div>
-                            <h3 className="text-xl font-bold text-light-text mb-2">{story.name}</h3>
-                            <p className="text-medium-text mb-4">{story.hustle}</p>
-                            <div className="flex items-center justify-between mb-4">
-                                <span className="text-sm text-medium-text">{story.timeline}</span>
-                                <span className="text-lg font-bold text-brand-orange">{story.earnings}</span>
-                            </div>
-                            <p className="text-medium-text italic mb-4">"{story.quote.substring(0, 100)}..."</p>
-                            <button className="text-brand-orange-light hover:underline font-medium">Read Full Story →</button>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
-    }
-
-    // All other views will show "coming soon" style pages
-    const viewTitles: {[key: string]: string} = {
-        'discussion-forum': 'Discussion Forum',
-        'weekly-challenge': 'Weekly Challenge',
-        'resource-library': 'Resource Library',
-        'expert-office-hours': 'Expert Office Hours',
-        'networking-events': 'Networking Events'
-    };
-
     return (
         <div className="p-8 animate-fade-in-up">
-            <button onClick={() => setView('main')} className="mb-6 flex items-center text-medium-text hover:text-light-text transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Back to Community
-            </button>
-
-            <h2 className="text-3xl font-bold text-light-text mb-6">{viewTitles[view] || 'Community'}</h2>
-            <div className="bg-dark-card border border-dark-card-border p-8 rounded-lg">
-                <div className="text-center py-12">
-                    <div className="text-6xl mb-4">🚧</div>
-                    <h3 className="text-2xl font-bold text-light-text mb-4">Coming Soon!</h3>
-                    <p className="text-medium-text mb-6">
-                        We're working hard to bring you amazing community features. This section will be available in a future update.
-                    </p>
-                    <p className="text-sm text-medium-text">Check back soon for updates!</p>
-                </div>
+            <h2 className="text-3xl font-bold text-light-text mb-6">Community</h2>
+            <div className="bg-dark-card border border-dark-card-border p-8 rounded-lg text-center">
+                <p className="text-xl text-medium-text mb-4">Community features coming soon!</p>
+                <p className="text-medium-text">Connect with other hustlers, share your success stories, and learn from the community.</p>
             </div>
         </div>
     );
