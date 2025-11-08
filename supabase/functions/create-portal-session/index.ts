@@ -15,8 +15,8 @@ const getAllowedOrigin = (requestOrigin: string | null): string => {
     'http://localhost:5173', // Vite default port
     'https://bbzuoynbdzutgslcvyqw.supabase.co', // Supabase project URL
     // Add your production domain here when ready:
-    // 'https://yourproductiondomain.com',
-    // 'https://www.yourproductiondomain.com',
+    'https://nectarforge.app',
+    'https://www.nectarforge.app',
   ];
 
   // If request origin is in allowed list, use it. Otherwise, use first allowed origin.

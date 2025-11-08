@@ -24,8 +24,8 @@ const PRICE_TO_PLAN: Record<string, string> = {
   'price_1SQBnPRakR1kW1LLP2Ru3vYs': 'entrepreneur', // Entrepreneur Plan ($19)
 
   // Old test mode IDs (keeping for backwards compatibility)
-  'price_1SOM6aDPosqqbsKxdrWWe834': 'free',
-  'price_1SOM7DDPosqqbsKx8lBviJSS': 'entrepreneur',
+  'price_1SQAuARm39dS6XFYdI25ZNcH': 'free',
+  'price_1SQAumRm39dS6XFYItaRfLQr': 'entrepreneur',
 }
 
 // Helper function to get plan name from price ID
