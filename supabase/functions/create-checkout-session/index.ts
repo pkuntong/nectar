@@ -135,8 +135,16 @@ serve(async (req) => {
       mode: mode,
       success_url: successUrl || `${req.headers.get('origin')}/dashboard?success=true`,
       cancel_url: cancelUrl || `${req.headers.get('origin')}/pricing?canceled=true`,
+      // Receipt email configuration - sends receipt to customer but shows business email
+      customer_email: user.email, // Customer receives the receipt here
       metadata: {
         user_id: user.id,
+      },
+      // Customize receipt footer to show business email
+      custom_text: {
+        submit: {
+          message: 'Questions? Contact us at contact@nectarforge.app',
+        },
       },
     })
 
