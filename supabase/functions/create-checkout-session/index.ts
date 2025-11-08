@@ -159,9 +159,10 @@ serve(async (req) => {
     console.error('Edge Function error:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: errorMessage,
-        details: error instanceof Error ? error.stack : undefined
+        // Only expose stack trace in development, never in production
+        ...(isDev && error instanceof Error && { details: error.stack })
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
