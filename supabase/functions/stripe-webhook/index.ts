@@ -17,16 +17,35 @@ const supabaseAdmin = createClient(
 )
 
 // Price ID to plan name mapping
-// These should match the VITE_STRIPE_PRICE_* variables in your frontend .env
-const PRICE_TO_PLAN: Record<string, string> = {
-  // Your CORRECT price IDs (Nectar Sandbox account: acct_1SPz2FRakR1kW1LL)
-  'price_1SQBmxRakR1kW1LLW09tsdF5': 'free',      // Hustler Plan ($0)
-  'price_1SQBnPRakR1kW1LLP2Ru3vYs': 'entrepreneur', // Entrepreneur Plan ($19)
+// Uses environment variables to support both TEST and LIVE mode
+// Set these in Supabase Edge Function secrets to match your frontend env vars
+const getPriceToplanMapping = (): Record<string, string> => {
+  const mapping: Record<string, string> = {};
 
-  // Old test mode IDs (keeping for backwards compatibility)
-  'price_1SOM6aDPosqqbsKxdrWWe834': 'free',
-  'price_1SOM7DDPosqqbsKx8lBviJSS': 'entrepreneur',
-}
+  // Get price IDs from environment variables (recommended for production)
+  const freePriceId = Deno.env.get('STRIPE_PRICE_FREE');
+  const entrepreneurPriceId = Deno.env.get('STRIPE_PRICE_ENTREPRENEUR');
+
+  if (freePriceId) {
+    mapping[freePriceId] = 'free';
+  }
+  if (entrepreneurPriceId) {
+    mapping[entrepreneurPriceId] = 'entrepreneur';
+  }
+
+  // Fallback: Hard-coded test mode IDs (for backwards compatibility)
+  // These will be used if environment variables are not set
+  mapping['price_1SQBmxRakR1kW1LLW09tsdF5'] = 'free';      // TEST: Hustler Plan ($0)
+  mapping['price_1SQBnPRakR1kW1LLP2Ru3vYs'] = 'entrepreneur'; // TEST: Entrepreneur Plan ($19)
+
+  // Old test mode IDs (legacy support)
+  mapping['price_1SOM6aDPosqqbsKxdrWWe834'] = 'free';
+  mapping['price_1SOM7DDPosqqbsKx8lBviJSS'] = 'entrepreneur';
+
+  return mapping;
+};
+
+const PRICE_TO_PLAN = getPriceToplanMapping();
 
 // Helper function to get plan name from price ID
 function getPlanFromPriceId(priceId: string): string {

@@ -125,11 +125,11 @@ END OF CODE
 
 AFTER DEPLOYING:
 
-1. Go to the function settings
-2. Add these secrets:
-   - STRIPE_SECRET_KEY = sk_test_51SNkuTDPosqqbsKxvKKhuZ93OE3RKnBc5rbIY5w80QVWmQs4jw7SBXBTuprzDHLo0sv4V6hdL2ejLQk6n8KW5J3g00JrMMlWok
-   - SUPABASE_URL = https://bbzuoynbdzutgslcvyqw.supabase.co
-   - SUPABASE_ANON_KEY = (get from your .env file)
+1. Go to the function settings in Supabase Dashboard
+2. Add these secrets (get values from your .env file or Stripe dashboard):
+   - STRIPE_SECRET_KEY = sk_test_YOUR_KEY_HERE (or sk_live_YOUR_KEY_HERE for production)
+   - SUPABASE_URL = https://your-project.supabase.co
+   - SUPABASE_ANON_KEY = your_anon_key_here
 
 3. Click Save
 

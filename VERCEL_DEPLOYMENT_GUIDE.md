@@ -25,48 +25,50 @@ Copy and paste each variable below **exactly as shown**:
 
 ```bash
 # Variable Name: VITE_GROQ_API_KEY
-# Value:
-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
+# Value: (Get from https://console.groq.com/keys)
+gsk_YOUR_GROQ_API_KEY_HERE
 
 # Variable Name: GEMINI_API_KEY
-# Value:
-AIzaSyC-HOutabmCpkOubItRjCRx5MYjZ4O1S0k
+# Value: (Get from https://makersuite.google.com/app/apikey)
+YOUR_GEMINI_API_KEY_HERE
 ```
 
 #### 🗄️ Supabase Configuration (REQUIRED)
 
 ```bash
 # Variable Name: VITE_SUPABASE_URL
-# Value:
-https://bbzuoynbdzutgslcvyqw.supabase.co
+# Value: (Get from Supabase Dashboard → Settings → API)
+https://your-project.supabase.co
 
 # Variable Name: VITE_SUPABASE_ANON_KEY
-# Value:
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJienVveW5iZHp1dGdzbGN2eXF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE3NzU3NzIsImV4cCI6MjA3NzM1MTc3Mn0.arYnHThA2ja9rqEO0stDLtiDkBzYbDG8FtgKT3Uoq8c
+# Value: (Get from Supabase Dashboard → Settings → API)
+your_supabase_anon_key_here
 ```
 
 #### 💳 Stripe Configuration (TEST MODE - You haven't switched to LIVE yet)
 
 ```bash
 # Variable Name: VITE_STRIPE_PUBLISHABLE_KEY
-# Value:
-pk_test_51SPz2FRakR1kW1LLyDZRiYMZvsCUkTIwkzSHcUbB74bqPqJbPRyoxAF6NIG2sSh6aalNDpRbSOrqRxqqN7dMypfY00ehdIVj7x
+# Value: (Get from Stripe Dashboard → Developers → API keys)
+# For test mode: pk_test_...
+# For live mode: pk_live_...
+pk_test_YOUR_PUBLISHABLE_KEY_HERE
 
 # Variable Name: VITE_STRIPE_PRICE_FREE
-# Value:
-price_1SQBmxRakR1kW1LLW09tsdF5
+# Value: (Create products in Stripe Dashboard → Products)
+price_YOUR_FREE_PRICE_ID_HERE
 
 # Variable Name: VITE_STRIPE_PRICE_ENTREPRENEUR
-# Value:
-price_1SQBnPRakR1kW1LLP2Ru3vYs
+# Value: (Create products in Stripe Dashboard → Products)
+price_YOUR_ENTREPRENEUR_PRICE_ID_HERE
 ```
 
 #### 📊 Sentry Error Monitoring (OPTIONAL but recommended)
 
 ```bash
 # Variable Name: VITE_SENTRY_DSN
-# Value:
-https://f74f8d19c5afb1e508b941fb5b3d2af7@o4510275544940545.ingest.us.sentry.io/4510275934748672
+# Value: (Get from Sentry → Settings → Projects → Your Project → Client Keys)
+https://your_sentry_dsn_here@your_project.ingest.sentry.io/your_project_id
 ```
 
 ### Step 3: Set Environment Scope
@@ -102,7 +104,7 @@ After redeployment completes (~2 minutes):
 
 1. Click **"Add"** button
 2. **Name:** `VITE_GROQ_API_KEY` (exactly as shown, case-sensitive)
-3. **Value:** `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`
+3. **Value:** Your actual Groq API key from https://console.groq.com/keys
 4. **Environments:** Check ✅ Production, Preview, Development
 5. Click **"Save"**
 6. Repeat for all variables above
@@ -186,9 +188,9 @@ supabase secrets set SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVICE_KEY
 ### Issue: "Supabase connection errors"
 
 **Fix:**
-1. Verify `VITE_SUPABASE_URL` is correct (should be https://bbzuoynbdzutgslcvyqw.supabase.co)
+1. Verify `VITE_SUPABASE_URL` is correct (get from Supabase Dashboard → Settings → API)
 2. Verify `VITE_SUPABASE_ANON_KEY` is the full JWT token (starts with `eyJ...`)
-3. Check Supabase dashboard: https://supabase.com/dashboard/project/bbzuoynbdzutgslcvyqw
+3. Check your Supabase dashboard project settings
 
 ### Issue: "Stripe checkout not working"
 

@@ -19,6 +19,7 @@ import GoogleOAuthSetupPage from './components/pages/GoogleOAuthSetupPage';
 import Login from './components/auth/Login';
 // SignUp component removed - now integrated into Login component
 import { supabase } from './lib/supabase';
+import { logger } from './lib/logger';
 import type { User } from '@supabase/supabase-js';
 import * as Sentry from '@sentry/react';
 
@@ -61,20 +62,20 @@ function App() {
                             hash.includes('code=');
       
       if (hasOAuthTokens) {
-        console.log('OAuth callback detected, waiting for Supabase to process...');
+        logger.log('OAuth callback detected, waiting for Supabase to process...');
         // Supabase client will automatically process these tokens
         // Check session multiple times with increasing delays to ensure we catch it
         const checkSession = async (attempt = 0) => {
           const { data: { session }, error } = await supabase.auth.getSession();
           if (error) {
-            console.error('Error getting session after OAuth:', error);
+            logger.error('Error getting session after OAuth:', error);
             if (attempt < 3) {
               setTimeout(() => checkSession(attempt + 1), 500);
             }
             return;
           }
           if (session?.user) {
-            console.log('OAuth session found:', session.user.email);
+            logger.log('OAuth session found:', session.user.email);
             setUser(session.user);
             setShowDashboard(true);
             setCurrentPage('home');
@@ -105,7 +106,7 @@ function App() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email);
+      logger.log('Auth state changed:', event, session?.user?.email);
       setUser(session?.user ?? null);
       // After OAuth login, show dashboard
       if (session?.user) {

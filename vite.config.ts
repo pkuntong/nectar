@@ -13,6 +13,12 @@ export default defineConfig(({ mode }) => {
       define: {
         // ✅ SAFE - Only expose public environment variables to the frontend
         // These are prefixed with VITE_ and are safe to expose
+
+        // ⚠️ SECURITY NOTE: GEMINI_API_KEY is exposed to frontend for client-side AI generation
+        // To secure in production:
+        // 1. Set API restrictions in Google Cloud Console (restrict to nectarforge.app domain)
+        // 2. Set usage quotas to prevent abuse
+        // 3. Consider moving to server-side Edge Function for better security
         'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.VITE_GROQ_API_KEY': JSON.stringify(env.VITE_GROQ_API_KEY),
         'process.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL),

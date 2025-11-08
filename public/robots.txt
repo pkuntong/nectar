@@ -6,5 +6,5 @@ Allow: /
 Disallow: /dashboard
 Disallow: /dashboard/*
 
-# Sitemap location
-Sitemap: https://nectar.ai/sitemap.xml
+# Sitemap location (uncomment when you create a sitemap)
+# Sitemap: https://nectarforge.app/sitemap.xml

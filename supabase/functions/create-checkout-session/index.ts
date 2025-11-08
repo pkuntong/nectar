@@ -11,12 +11,11 @@ const log = (...args: any[]) => isDev && console.log(...args);
 // During development, allows localhost. In production, only allows your domain.
 const getAllowedOrigin = (requestOrigin: string | null): string => {
   const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:5173', // Vite default port
+    'https://nectarforge.app',           // ✅ Production domain
+    'https://www.nectarforge.app',       // ✅ Production domain with www
+    'http://localhost:3000',             // Development
+    'http://localhost:5173',             // Vite default port
     'https://bbzuoynbdzutgslcvyqw.supabase.co', // Supabase project URL
-    // Add your production domain here when ready:
-    // 'https://yourproductiondomain.com',
-    // 'https://www.yourproductiondomain.com',
   ];
 
   // If request origin is in allowed list, use it. Otherwise, use first allowed origin.
