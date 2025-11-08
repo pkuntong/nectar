@@ -15,8 +15,9 @@ import PricingPage from './components/pages/PricingPage';
 import AboutPage from './components/pages/AboutPage';
 import PrivacyPage from './components/pages/PrivacyPage';
 import TermsPage from './components/pages/TermsPage';
+import GoogleOAuthSetupPage from './components/pages/GoogleOAuthSetupPage';
 import Login from './components/auth/Login';
-import SignUpComponent from './components/auth/SignUp';
+// SignUp component removed - now integrated into Login component
 import { supabase } from './lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import * as Sentry from '@sentry/react';
@@ -38,7 +39,7 @@ const InfoContent: React.FC<{ type: string }> = ({ type }) => {
 };
 
 
-type Page = 'home' | 'pricing' | 'about' | 'privacy' | 'terms';
+type Page = 'home' | 'pricing' | 'about' | 'privacy' | 'terms' | 'google-oauth-setup';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -50,25 +51,119 @@ function App() {
 
   // Check auth state on mount
   useEffect(() => {
+    // Handle OAuth callback - Supabase automatically processes tokens in URL hash
+    const handleOAuthCallback = async () => {
+      // Check if URL has OAuth tokens (Supabase adds them to hash)
+      const hash = window.location.hash;
+      const hasOAuthTokens = hash.includes('access_token') || 
+                            hash.includes('type=recovery') || 
+                            hash.includes('error=') ||
+                            hash.includes('code=');
+      
+      if (hasOAuthTokens) {
+        console.log('OAuth callback detected, waiting for Supabase to process...');
+        // Supabase client will automatically process these tokens
+        // Check session multiple times with increasing delays to ensure we catch it
+        const checkSession = async (attempt = 0) => {
+          const { data: { session }, error } = await supabase.auth.getSession();
+          if (error) {
+            console.error('Error getting session after OAuth:', error);
+            if (attempt < 3) {
+              setTimeout(() => checkSession(attempt + 1), 500);
+            }
+            return;
+          }
+          if (session?.user) {
+            console.log('OAuth session found:', session.user.email);
+            setUser(session.user);
+            setShowDashboard(true);
+            setCurrentPage('home');
+            setActiveModal(null);
+            // Clean up URL - remove OAuth tokens from hash
+            window.history.replaceState(null, '', window.location.pathname + '#dashboard');
+          } else if (attempt < 5) {
+            // Keep checking for up to 2.5 seconds
+            setTimeout(() => checkSession(attempt + 1), 500);
+          }
+        };
+        // Start checking after a brief delay
+        setTimeout(() => checkSession(), 300);
+      }
+    };
+
+    // Check session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        setShowDashboard(true);
+      }
     });
+
+    // Handle OAuth callback
+    handleOAuthCallback();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email);
       setUser(session?.user ?? null);
+      // After OAuth login, show dashboard
+      if (session?.user) {
+        setShowDashboard(true);
+        setCurrentPage('home');
+        setActiveModal(null);
+        // Update URL to dashboard if we have OAuth tokens
+        const hash = window.location.hash;
+        if (hash.includes('access_token') || hash.includes('type=recovery')) {
+          window.history.replaceState(null, '', window.location.pathname + '#dashboard');
+        }
+      } else {
+        setShowDashboard(false);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  // Handle URL hash routing
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1); // Remove the #
+      
+      // Don't interfere with OAuth tokens
+      if (hash.includes('access_token') || hash.includes('type=recovery') || hash.includes('error=') || hash.includes('code=')) {
+        return; // Let OAuth callback handler deal with this
+      }
+      
+      if (hash === 'google-oauth-setup') {
+        setCurrentPage('google-oauth-setup');
+      } else if (hash === 'pricing') {
+        setCurrentPage('pricing');
+      } else if (hash === 'about') {
+        setCurrentPage('about');
+      } else if (hash === 'privacy') {
+        setCurrentPage('privacy');
+      } else if (hash === 'terms') {
+        setCurrentPage('terms');
+      } else if (hash === 'dashboard') {
+        setCurrentPage('home');
+        setShowDashboard(true);
+      } else if (!hash) {
+        setCurrentPage('home');
+      }
+    };
+
+    // Check initial hash (but delay slightly to let OAuth handler run first)
+    setTimeout(() => {
+      handleHashChange();
+    }, 100);
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   const handleLoginSuccess = () => {
-    setActiveModal(null);
-    setError(null);
-  };
-  
-  const handleSignUpSuccess = () => {
     setActiveModal(null);
     setError(null);
   };
@@ -120,7 +215,7 @@ function App() {
   
   const getModalTitle = () => {
       if (activeModal === 'login') return 'Welcome Back';
-      if (activeModal === 'signup') return 'Create Your Account';
+      // Removed signup modal - now integrated into login
       if (activeModal === 'pricing') return 'Pricing Plans';
       if (activeModal === 'info') {
           if (infoType === 'tos') return 'Terms of Service';
@@ -143,6 +238,9 @@ function App() {
     if (currentPage === 'terms') {
       return <TermsPage onBack={handleBackToHome} />;
     }
+    if (currentPage === 'google-oauth-setup') {
+      return <GoogleOAuthSetupPage onBack={handleBackToHome} />;
+    }
     
     // Home page
     if (user) {
@@ -161,19 +259,19 @@ function App() {
             <Header 
               isLoggedIn={!!user}
               onLoginClick={() => setActiveModal('login')}
-              onSignUpClick={() => setActiveModal('signup')}
+              onSignUpClick={() => setActiveModal('login')}
               onLogout={handleLogout}
               onDashboardClick={handleDashboardClick}
             />
             <main>
               <Hero 
-                onPrimaryClick={() => setActiveModal('signup')} 
+                onPrimaryClick={() => setActiveModal('login')} 
                 onSecondaryClick={scrollToDemo} 
               />
               <HowItWorks />
               <Features />
               <DashboardDemo
-                onSignUpClick={() => setActiveModal('signup')}
+                onSignUpClick={() => setActiveModal('login')}
                 onPricingClick={() => handleInfoClick('pricing')}
               />
               <Testimonials />
@@ -231,7 +329,6 @@ function App() {
         size={activeModal === 'pricing' ? '2xl' : 'md'}
       >
         {activeModal === 'login' && <Login onLoginSuccess={handleLoginSuccess} onError={handleError} />}
-        {activeModal === 'signup' && <SignUpComponent onSignUpSuccess={handleSignUpSuccess} onError={handleError} />}
         {activeModal === 'pricing' && <Pricing />}
         {activeModal === 'info' && <InfoContent type={infoType} />}
       </Modal>

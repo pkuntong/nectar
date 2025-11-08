@@ -64,16 +64,38 @@ const DashboardDemo: React.FC<DashboardDemoProps> = ({ onSignUpClick, onPricingC
   }, []);
 
   const handleSaveHustle = (hustle: Hustle) => {
-    const saved = new Set(savedHustles);
-    if (saved.has(hustle.hustleName)) {
-      saved.delete(hustle.hustleName);
+    // Load existing saved hustles
+    const existingHustles = localStorage.getItem('nectar_saved_hustles_data');
+    let hustlesData: Hustle[] = [];
+
+    try {
+      if (existingHustles) {
+        hustlesData = JSON.parse(existingHustles);
+      }
+    } catch (e) {
+      logger.error('Error loading saved hustles data:', e);
+    }
+
+    // Check if already saved
+    const existingIndex = hustlesData.findIndex(h => h.hustleName === hustle.hustleName);
+
+    if (existingIndex !== -1) {
+      // Remove if already saved
+      hustlesData.splice(existingIndex, 1);
+      savedHustles.delete(hustle.hustleName);
       alert(`${hustle.hustleName} removed from saved hustles`);
     } else {
-      saved.add(hustle.hustleName);
+      // Add new hustle with full data
+      hustlesData.push(hustle);
+      savedHustles.add(hustle.hustleName);
       alert(`${hustle.hustleName} saved! View it in "My Hustles".`);
     }
-    setSavedHustles(saved);
-    localStorage.setItem('nectar_saved_hustles', JSON.stringify(Array.from(saved)));
+
+    setSavedHustles(new Set(savedHustles));
+    // Save full hustle data
+    localStorage.setItem('nectar_saved_hustles_data', JSON.stringify(hustlesData));
+    // Keep names list for backward compatibility
+    localStorage.setItem('nectar_saved_hustles', JSON.stringify(Array.from(savedHustles)));
   };
 
   const handleCopyToClipboard = (hustle: Hustle, index: number) => {

@@ -66,7 +66,22 @@ const Pricing: React.FC = () => {
       }
 
       if (isFree) {
-        // Handle free plan - update user subscription in database
+        // Check if user has an active paid subscription
+        logger.log('Checking subscription status for user:', user.id);
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('subscription_tier')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.subscription_tier === 'entrepreneur') {
+          // User has active paid subscription - redirect to Settings to manage via Stripe
+          alert('You currently have an active Entrepreneur subscription. To downgrade to Free, please manage your subscription in Settings. You\'ll keep Entrepreneur access until the end of your billing period.');
+          setLoading(false);
+          return;
+        }
+
+        // User is already on free or no subscription - activate free plan
         logger.log('Activating free plan for user:', user.id);
         const { error: updateError } = await supabase
           .from('user_profiles')

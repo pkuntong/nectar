@@ -101,17 +101,11 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, onLoginClick, onSignUpClick
                 </>
             ) : (
                 <>
-                    <button 
-                      onClick={onLoginClick} 
-                      className="text-light-text font-medium py-2.5 px-6 rounded-lg hover:bg-white/5 transition-all duration-300"
-                    >
-                        Login
-                    </button>
-                    <button 
-                      onClick={onSignUpClick} 
+                    <button
+                      onClick={onLoginClick}
                       className="bg-gradient-to-r from-brand-orange-light to-brand-orange text-white font-bold py-2.5 px-6 rounded-lg hover:scale-105 active:scale-95 transition-all duration-300 shadow-lg shadow-brand-orange/30 hover:shadow-glow-orange-sm"
                     >
-                        Sign Up for Free
+                        Login / Sign Up
                     </button>
                 </>
             )}

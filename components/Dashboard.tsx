@@ -8,48 +8,102 @@ import FAQ from './FAQ'; // Import the FAQ component
 import Pricing from './Pricing';
 import { logger } from '../lib/logger';
 
-const DashboardHome: React.FC = () => (
-    <div className="p-8 animate-fade-in-up">
-        <h2 className="text-3xl font-bold text-light-text mb-6">Overview</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-dark-card border border-dark-card-border p-6 rounded-lg">
-                <h3 className="text-medium-text font-semibold">Active Hustles</h3>
-                <p className="text-3xl font-bold text-light-text mt-2">3</p>
-                <p className="text-sm text-medium-text mt-1">2 Active, 1 Planned</p>
+const DashboardHome: React.FC = () => {
+    const [savedHustlesCount, setSavedHustlesCount] = useState(0);
+
+    useEffect(() => {
+        // Load actual saved hustles count
+        const savedData = localStorage.getItem('nectar_saved_hustles_data');
+        if (savedData) {
+            try {
+                const hustlesData = JSON.parse(savedData);
+                setSavedHustlesCount(hustlesData.length);
+            } catch (e) {
+                logger.error('Error loading saved hustles count:', e);
+            }
+        }
+    }, []);
+
+    return (
+        <div className="p-8 animate-fade-in-up">
+            <h2 className="text-3xl font-bold text-light-text mb-6">Overview</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-dark-card border border-dark-card-border p-6 rounded-lg">
+                    <h3 className="text-medium-text font-semibold">Saved Hustles</h3>
+                    <p className="text-3xl font-bold text-light-text mt-2">{savedHustlesCount}</p>
+                    <p className="text-sm text-medium-text mt-1">
+                        {savedHustlesCount === 0 ? 'No hustles saved yet' : `${savedHustlesCount} hustle${savedHustlesCount === 1 ? '' : 's'} saved`}
+                    </p>
+                </div>
+                <div className="bg-dark-card border border-dark-card-border p-6 rounded-lg">
+                    <h3 className="text-medium-text font-semibold">Get Started</h3>
+                    <p className="text-lg font-bold text-light-text mt-2">Find Hustles</p>
+                    <p className="text-sm text-medium-text mt-1">Generate AI-powered side hustle ideas</p>
+                </div>
             </div>
-            <div className="bg-dark-card border border-dark-card-border p-6 rounded-lg">
-                <h3 className="text-medium-text font-semibold">New Opportunities</h3>
-                <p className="text-3xl font-bold text-light-text mt-2">8</p>
-                <p className="text-sm text-medium-text mt-1">Based on your new skills</p>
+            <div className="mt-8 bg-dark-card border border-dark-card-border p-6 rounded-lg">
+                <h3 className="text-xl font-bold text-light-text mb-4">Your Recent Activity</h3>
+                <p className="text-medium-text">Your recent activity will appear here as you use the platform. Try generating some side hustle ideas to get started!</p>
             </div>
         </div>
-        <div className="mt-8 bg-dark-card border border-dark-card-border p-6 rounded-lg">
-            <h3 className="text-xl font-bold text-light-text mb-4">Your Recent Activity</h3>
-            <p className="text-medium-text">Your recent activity will appear here as you use the platform. Try generating some side hustle ideas to get started!</p>
-        </div>
-    </div>
-);
+    );
+};
+
+interface Hustle {
+    hustleName: string;
+    description: string;
+    estimatedProfit: string;
+    upfrontCost: string;
+    timeCommitment: string;
+    requiredSkills: string[];
+    potentialChallenges: string;
+    learnMoreLink: string;
+}
 
 const MyHustles: React.FC = () => {
-    const [savedHustles, setSavedHustles] = useState<string[]>([]);
+    const [savedHustles, setSavedHustles] = useState<Hustle[]>([]);
     const [expandedHustle, setExpandedHustle] = useState<string | null>(null);
 
     useEffect(() => {
-        const saved = localStorage.getItem('nectar_saved_hustles');
-        if (saved) {
+        // Try to load full hustle data first
+        const savedData = localStorage.getItem('nectar_saved_hustles_data');
+        if (savedData) {
             try {
-                const savedArray = JSON.parse(saved);
-                setSavedHustles(savedArray);
+                const hustlesData = JSON.parse(savedData);
+                setSavedHustles(hustlesData);
             } catch (e) {
-                logger.error('Error loading saved hustles:', e);
+                logger.error('Error loading saved hustles data:', e);
+            }
+        } else {
+            // Fallback to old format (names only)
+            const saved = localStorage.getItem('nectar_saved_hustles');
+            if (saved) {
+                try {
+                    const savedArray = JSON.parse(saved);
+                    // Convert names to basic hustle objects
+                    const basicHustles = savedArray.map((name: string) => ({
+                        hustleName: name,
+                        description: 'Click "View Details" to see full information',
+                        estimatedProfit: 'N/A',
+                        upfrontCost: 'N/A',
+                        timeCommitment: 'N/A',
+                        requiredSkills: [],
+                        potentialChallenges: 'N/A',
+                        learnMoreLink: '/dashboard?tab=find'
+                    }));
+                    setSavedHustles(basicHustles);
+                } catch (e) {
+                    logger.error('Error loading saved hustles:', e);
+                }
             }
         }
     }, []);
 
     const handleRemove = (hustleName: string) => {
-        const updated = savedHustles.filter(name => name !== hustleName);
+        const updated = savedHustles.filter(h => h.hustleName !== hustleName);
         setSavedHustles(updated);
-        localStorage.setItem('nectar_saved_hustles', JSON.stringify(updated));
+        localStorage.setItem('nectar_saved_hustles_data', JSON.stringify(updated));
+        localStorage.setItem('nectar_saved_hustles', JSON.stringify(updated.map(h => h.hustleName)));
         if (expandedHustle === hustleName) {
             setExpandedHustle(null);
         }
@@ -77,22 +131,22 @@ const MyHustles: React.FC = () => {
         <div className="p-8 animate-fade-in-up">
             <h2 className="text-3xl font-bold text-light-text mb-6">My Hustles</h2>
             <div className="space-y-4">
-                {savedHustles.map((hustleName, index) => (
+                {savedHustles.map((hustle, index) => (
                     <div key={index} className="bg-dark-card border border-dark-card-border rounded-lg overflow-hidden">
-                        <div className="p-6 flex justify-between items-center">
-                            <div className="flex-1">
-                                <h3 className="text-xl font-bold text-light-text">{hustleName}</h3>
-                                <p className="text-medium-text mt-2">Click "View Details" to see the full hustle information</p>
+                        <div
+                            className="p-6 flex justify-between items-center cursor-pointer hover:bg-dark-bg/50 transition-colors"
+                            onClick={() => handleView(hustle.hustleName)}
+                        >
+                            <div className="flex-1 pointer-events-none">
+                                <h3 className="text-xl font-bold text-light-text">{hustle.hustleName}</h3>
+                                <p className="text-medium-text mt-2">{hustle.description.substring(0, 100)}...</p>
+                                <p className="text-sm text-brand-orange mt-2">
+                                    {expandedHustle === hustle.hustleName ? '▼ Click to hide details' : '▶ Click to view details'}
+                                </p>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                                 <button
-                                    onClick={() => handleView(hustleName)}
-                                    className="bg-brand-orange text-white font-semibold py-2 px-4 rounded-md hover:opacity-90 transition-opacity"
-                                >
-                                    {expandedHustle === hustleName ? 'Hide Details' : 'View Details'}
-                                </button>
-                                <button
-                                    onClick={() => handleRemove(hustleName)}
+                                    onClick={() => handleRemove(hustle.hustleName)}
                                     className="border border-red-400 text-red-400 hover:bg-red-400 hover:text-white transition-colors py-2 px-4 rounded-md font-semibold"
                                 >
                                     Delete
@@ -100,35 +154,50 @@ const MyHustles: React.FC = () => {
                             </div>
                         </div>
 
-                        {expandedHustle === hustleName && (
+                        {expandedHustle === hustle.hustleName && (
                             <div className="border-t border-dark-card-border p-6 bg-dark-bg/50 animate-fade-in-up">
-                                <div className="space-y-4">
+                                <div className="space-y-6">
                                     <div>
-                                        <h4 className="text-lg font-bold text-brand-orange mb-2">About This Hustle</h4>
-                                        <p className="text-medium-text">
-                                            {hustleName} is a great side hustle opportunity. To get the full detailed plan and recommendations,
-                                            visit the "Find Hustles" tab and generate a new plan with your specific requirements.
-                                        </p>
+                                        <h4 className="text-lg font-bold text-brand-orange mb-2">Description</h4>
+                                        <p className="text-medium-text">{hustle.description}</p>
                                     </div>
+
+                                    <div className="grid md:grid-cols-2 gap-4">
+                                        <div>
+                                            <h4 className="text-sm font-bold text-brand-orange mb-1">Estimated Profit</h4>
+                                            <p className="text-light-text">{hustle.estimatedProfit}</p>
+                                        </div>
+                                        <div>
+                                            <h4 className="text-sm font-bold text-brand-orange mb-1">Upfront Cost</h4>
+                                            <p className="text-light-text">{hustle.upfrontCost}</p>
+                                        </div>
+                                        <div>
+                                            <h4 className="text-sm font-bold text-brand-orange mb-1">Time Commitment</h4>
+                                            <p className="text-light-text">{hustle.timeCommitment}</p>
+                                        </div>
+                                        <div>
+                                            <h4 className="text-sm font-bold text-brand-orange mb-1">Required Skills</h4>
+                                            <p className="text-light-text">{hustle.requiredSkills.join(', ')}</p>
+                                        </div>
+                                    </div>
+
                                     <div>
-                                        <h4 className="text-lg font-bold text-brand-orange mb-2">Next Steps</h4>
-                                        <ul className="list-disc list-inside space-y-2 text-medium-text">
-                                            <li>Research the market demand in your area</li>
-                                            <li>Validate your idea with potential customers</li>
-                                            <li>Create a simple business plan</li>
-                                            <li>Start with a minimal viable product (MVP)</li>
-                                            <li>Get your first customer within 30 days</li>
-                                        </ul>
+                                        <h4 className="text-lg font-bold text-brand-orange mb-2">Potential Challenges</h4>
+                                        <p className="text-medium-text">{hustle.potentialChallenges}</p>
                                     </div>
-                                    <div className="pt-4">
+
+                                    <div className="pt-4 flex gap-4">
                                         <a
-                                            href="/dashboard?tab=find"
-                                            className="inline-flex items-center gap-2 text-brand-orange hover:text-brand-orange-light transition-colors font-semibold"
+                                            href={hustle.learnMoreLink}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-2 bg-brand-orange text-white font-semibold py-3 px-6 rounded-md hover:opacity-90 transition-opacity"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clipRule="evenodd" />
+                                                <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                                                <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
                                             </svg>
-                                            Generate a detailed plan for this hustle
+                                            Learn More (External Link)
                                         </a>
                                     </div>
                                 </div>
@@ -442,6 +511,24 @@ const SettingsContent: React.FC<{ onProfileUpdate?: () => void }> = ({ onProfile
                         {subscriptionTier === 'entrepreneur' && (
                             <div className="pt-4 border-t border-dark-card-border">
                                 <p className="text-sm text-medium-text mb-3">Manage your subscription</p>
+
+                                {/* Downgrade Protection Notice */}
+                                <div className="bg-blue-500/10 border border-blue-500/30 p-4 rounded-md mb-4">
+                                    <div className="flex gap-2">
+                                        <svg className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                        </svg>
+                                        <div className="text-sm text-light-text">
+                                            <p className="font-semibold mb-1">Important: About Downgrades</p>
+                                            <p className="text-xs text-medium-text">
+                                                If you downgrade or cancel, you'll keep full Entrepreneur access until the end of your current billing period.
+                                                You've already paid for this month, so you won't lose any days of service. Your plan will automatically
+                                                convert to the Free (Hustler) plan when your billing period ends.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div className="space-y-2">
                                     <button
                                         onClick={handleManageSubscription}
