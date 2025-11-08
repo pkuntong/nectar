@@ -39,12 +39,12 @@ const FAQItem: React.FC<FAQItemProps> = ({ question, answer }) => {
 const FAQ: React.FC = () => {
   const faqs = [
     {
-      question: "What is Nectar?",
-      answer: "Nectar is an AI-powered platform designed to help you discover personalized side hustles, freelance gigs, and micro-investment opportunities. We analyze your skills, interests, and goals to provide you with a curated list of high-potential income streams."
+      question: "What is Nectar Forge?",
+      answer: "Nectar Forge is an AI-powered platform designed to help you discover personalized side hustles, freelance gigs, and micro-investment opportunities. We analyze your skills, interests, and goals to provide you with a curated list of high-potential income streams."
     },
     {
-      question: "Is Nectar free to use?",
-      answer: "Nectar offers a free tier that gives you access to a limited number of AI-powered recommendations per week. We also have premium plans with unlimited recommendations, advanced analytics, and direct access to exclusive opportunities."
+      question: "Is Nectar Forge free to use?",
+      answer: "Nectar Forge offers a free tier that gives you access to a limited number of AI-powered recommendations per week. We also have premium plans with unlimited recommendations, advanced analytics, and direct access to exclusive opportunities."
     },
     {
       question: "How much can I realistically earn?",

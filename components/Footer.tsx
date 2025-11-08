@@ -16,7 +16,7 @@ const Logo: React.FC = () => (
         </linearGradient>
       </defs>
     </svg>
-    <span className="font-bold text-2xl text-light-text tracking-wide">Nectar</span>
+    <span className="font-bold text-2xl text-light-text tracking-wide">Nectar Forge</span>
   </div>
 );
 
@@ -78,7 +78,7 @@ const Footer: React.FC<FooterProps> = ({ onInfoClick }) => {
                     </div>
                 </div>
                 <div className="mt-16 border-t border-dark-card-border pt-8 text-center text-medium-text">
-                    <p>&copy; {new Date().getFullYear()} Nectar AI, Inc. All rights reserved.</p>
+                    <p>&copy; {new Date().getFullYear()} Nectar Forge AI, Inc. All rights reserved.</p>
                 </div>
             </div>
         </footer>

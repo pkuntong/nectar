@@ -27,7 +27,7 @@ const BlogPage: React.FC<BlogPageProps> = ({ onClose }) => {
     {
       id: 3,
       title: "From $0 to $5K: A Real Success Story",
-      excerpt: "Meet Sarah, who turned freelance writing into a thriving business using Nectar's personalized recommendations.",
+      excerpt: "Meet Sarah, who turned freelance writing into a thriving business using Nectar Forge's personalized recommendations.",
       date: "October 25, 2025",
       category: "Success Stories",
       readTime: "6 min read",
@@ -68,7 +68,7 @@ const BlogPage: React.FC<BlogPageProps> = ({ onClose }) => {
         {/* Header */}
         <div className="bg-dark-card border-b border-dark-card-border sticky top-0 z-10">
           <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-light-text">Nectar Blog</h1>
+            <h1 className="text-2xl font-bold text-light-text">Nectar Forge Blog</h1>
             <button
               onClick={onClose}
               className="text-medium-text hover:text-light-text transition-colors"

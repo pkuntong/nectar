@@ -470,7 +470,7 @@ const SettingsContent: React.FC<{ onProfileUpdate?: () => void }> = ({ onProfile
                         <div className="flex items-center justify-between">
                              <div>
                                 <p className="font-medium text-light-text">Special Offers</p>
-                                <p className="text-sm text-medium-text">Receive promotional offers from Nectar and partners.</p>
+                                <p className="text-sm text-medium-text">Receive promotional offers from Nectar Forge and partners.</p>
                             </div>
                              <button onClick={() => handleToggle('offers')} className={`w-12 h-6 rounded-full flex items-center transition-colors ${notifications.offers ? 'bg-brand-orange' : 'bg-dark-bg'}`}>
                                 <span className={`inline-block w-5 h-5 bg-white rounded-full transform transition-transform ${notifications.offers ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -581,9 +581,9 @@ const HelpSupportContent: React.FC = () => {
                 <div className="bg-dark-card border border-dark-card-border p-8 rounded-lg max-w-4xl">
                     {showGuide === 'getting-started' && (
                         <>
-                            <h2 className="text-3xl font-bold text-light-text mb-6">Getting Started with Nectar</h2>
+                            <h2 className="text-3xl font-bold text-light-text mb-6">Getting Started with Nectar Forge</h2>
                             <div className="space-y-4 text-medium-text">
-                                <p>Welcome to Nectar! Here's everything you need to know to get started on your side hustle journey.</p>
+                                <p>Welcome to Nectar Forge! Here's everything you need to know to get started on your side hustle journey.</p>
                                 <h3 className="text-xl font-bold text-light-text mt-6 mb-3">Step 1: Complete Your Profile</h3>
                                 <p>Tell us about your skills, interests, and financial goals. The more details you provide, the better our AI can match you with opportunities.</p>
                                 <h3 className="text-xl font-bold text-light-text mt-6 mb-3">Step 2: Explore Your Matches</h3>
@@ -650,7 +650,7 @@ const HelpSupportContent: React.FC = () => {
                      <div className="bg-dark-card border border-dark-card-border p-6 rounded-lg">
                         <h3 className="text-xl font-bold text-light-text mb-4">Guides & Tutorials</h3>
                         <ul className="space-y-3">
-                            <li><button onClick={(e) => handleGuideClick('getting-started', e)} className="flex items-center w-full text-left text-medium-text hover:text-brand-orange-light transition-colors"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>Getting Started with Nectar</button></li>
+                            <li><button onClick={(e) => handleGuideClick('getting-started', e)} className="flex items-center w-full text-left text-medium-text hover:text-brand-orange-light transition-colors"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>Getting Started with Nectar Forge</button></li>
                             <li><button onClick={(e) => handleGuideClick('vetting', e)} className="flex items-center w-full text-left text-medium-text hover:text-brand-orange-light transition-colors"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>How to Vet a Side Hustle</button></li>
                         </ul>
                      </div>

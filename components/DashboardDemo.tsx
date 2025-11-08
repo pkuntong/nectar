@@ -391,7 +391,7 @@ Example format:
       return (
         <div className="text-center p-8">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-brand-orange mx-auto"></div>
-          <p className="mt-4 text-medium-text font-medium">Nectar AI is finding your opportunities...</p>
+          <p className="mt-4 text-medium-text font-medium">Nectar Forge AI is finding your opportunities...</p>
         </div>
       );
     }
@@ -499,7 +499,7 @@ Example format:
     <section id="dashboard-demo" className="py-20">
       <div className="container mx-auto px-6">
         <div className="text-center max-w-2xl mx-auto mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-light-text">See Nectar in Action</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-light-text">See Nectar Forge in Action</h2>
           <p className="text-lg text-medium-text mt-4">Tell us a bit about yourself and our AI will generate personalized side hustle ideas for you instantly.</p>
         </div>
 

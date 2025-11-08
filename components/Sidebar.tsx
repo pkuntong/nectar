@@ -42,7 +42,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, onLogoClick 
             </linearGradient>
           </defs>
         </svg>
-        <span className="font-bold text-2xl text-light-text tracking-wide">Nectar</span>
+        <span className="font-bold text-2xl text-light-text tracking-wide">Nectar Forge</span>
       </button>
       
       <nav className="flex-grow space-y-2">

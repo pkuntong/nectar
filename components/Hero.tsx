@@ -15,7 +15,7 @@ const Hero: React.FC<HeroProps> = ({ onPrimaryClick, onSecondaryClick }) => {
               <span className="bg-gradient-to-r from-brand-orange-light via-brand-orange to-brand-orange-light bg-clip-text text-transparent">Start Earning</span>
             </h1>
             <p className="text-lg md:text-xl lg:text-2xl text-medium-text max-w-3xl mx-auto mb-12 leading-relaxed animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-              Nectar's AI analyzes your skills and passions to uncover personalized, high-potential side hustles just for you. Your next income stream is just a click away.
+              Nectar Forge's AI analyzes your skills and passions to uncover personalized, high-potential side hustles just for you. Your next income stream is just a click away.
             </p>
             <div className="flex flex-col sm:flex-row justify-center items-center gap-4 animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
               <button 

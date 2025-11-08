@@ -264,9 +264,9 @@ function App() {
               onDashboardClick={handleDashboardClick}
             />
             <main>
-              <Hero 
-                onPrimaryClick={() => setActiveModal('login')} 
-                onSecondaryClick={scrollToDemo} 
+              <Hero
+                onPrimaryClick={() => user ? setShowDashboard(true) : setActiveModal('login')}
+                onSecondaryClick={scrollToDemo}
               />
               <HowItWorks />
               <Features />

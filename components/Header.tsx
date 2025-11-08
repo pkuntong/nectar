@@ -16,7 +16,7 @@ const Logo: React.FC = () => (
         </linearGradient>
       </defs>
     </svg>
-    <span className="font-bold text-2xl text-light-text tracking-wide">Nectar</span>
+    <span className="font-bold text-2xl text-light-text tracking-wide">Nectar Forge</span>
   </div>
 );
 

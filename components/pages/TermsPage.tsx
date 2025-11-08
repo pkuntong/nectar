@@ -25,12 +25,12 @@ const TermsPage: React.FC<TermsPageProps> = ({ onBack }) => {
               <strong className="text-light-text">Last updated:</strong> {new Date().toLocaleDateString()}
             </p>
             <p className="text-lg text-medium-text mb-6">
-              By using Nectar, you agree to our Terms of Service. This document outlines your rights and responsibilities as a user of our platform. Please read it carefully.
+              By using Nectar Forge, you agree to our Terms of Service. This document outlines your rights and responsibilities as a user of our platform. Please read it carefully.
             </p>
             
             <h2 className="text-2xl font-bold text-light-text mt-8 mb-4">Acceptance of Terms</h2>
             <p className="text-lg text-medium-text mb-6">
-              By accessing and using Nectar, you accept and agree to be bound by these Terms of Service. If you do not agree with any part of these terms, you must not use our service.
+              By accessing and using Nectar Forge, you accept and agree to be bound by these Terms of Service. If you do not agree with any part of these terms, you must not use our service.
             </p>
             
             <h2 className="text-2xl font-bold text-light-text mt-8 mb-4">User Responsibilities</h2>
@@ -51,7 +51,7 @@ const TermsPage: React.FC<TermsPageProps> = ({ onBack }) => {
             
             <h2 className="text-2xl font-bold text-light-text mt-8 mb-4">Limitation of Liability</h2>
             <p className="text-lg text-medium-text">
-              Nectar provides recommendations and information, but we are not responsible for the success or failure of any side hustle opportunities suggested through our platform.
+              Nectar Forge provides recommendations and information, but we are not responsible for the success or failure of any side hustle opportunities suggested through our platform.
             </p>
           </div>
         </div>

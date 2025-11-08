@@ -47,13 +47,13 @@ const CareersPage: React.FC<CareersPageProps> = ({ onBack }) => {
               
               <div className="bg-dark-card border border-dark-card-border p-6 rounded-lg">
                 <h3 className="text-xl font-bold text-light-text mb-2">Marketing Manager</h3>
-                <p className="text-medium-text mb-4">Spread the word about Nectar and help people discover their potential.</p>
+                <p className="text-medium-text mb-4">Spread the word about Nectar Forge and help people discover their potential.</p>
                 <p className="text-sm text-medium-text mb-4">Remote • Full-time</p>
                 <button className="text-brand-orange-light hover:underline font-medium">Learn More</button>
               </div>
             </div>
             
-            <h2 className="text-2xl font-bold text-light-text mt-8 mb-4">Why Join Nectar?</h2>
+            <h2 className="text-2xl font-bold text-light-text mt-8 mb-4">Why Join Nectar Forge?</h2>
             <ul className="list-disc list-inside text-medium-text mb-6 space-y-2">
               <li>Competitive salary and equity packages</li>
               <li>Remote-first work culture</li>

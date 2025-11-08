@@ -25,7 +25,7 @@ const Features: React.FC = () => {
     <section id="features" className="py-24 bg-dark-bg/50">
       <div className="container mx-auto px-6">
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-4xl md:text-5xl font-extrabold text-light-text mb-6 tracking-tight">Why Choose Nectar?</h2>
+          <h2 className="text-4xl md:text-5xl font-extrabold text-light-text mb-6 tracking-tight">Why Choose Nectar Forge?</h2>
           <p className="text-xl text-medium-text leading-relaxed">We're not just another list of ideas. We provide a tailored platform for growth.</p>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-2 gap-6">

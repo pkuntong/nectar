@@ -36,7 +36,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUpSuccess, onError }) => {
           await supabase.functions.invoke('send-email', {
             body: {
               to: email,
-              subject: 'Welcome to Nectar! 🚀',
+              subject: 'Welcome to Nectar Forge! 🚀',
               type: 'welcome',
             },
           });

@@ -95,6 +95,21 @@ const Pricing: React.FC = () => {
 
         alert('Free plan activated! You now have access to basic features.');
       } else {
+        // Check if user already has Entrepreneur plan
+        logger.log('Checking if user already has Entrepreneur plan...');
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('subscription_tier')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.subscription_tier === 'entrepreneur') {
+          // User already has Entrepreneur plan
+          alert('You already have an active Entrepreneur subscription! To manage your subscription, go to Settings → Subscription & Billing.');
+          setLoading(false);
+          return;
+        }
+
         // Handle paid plan - redirect to Stripe checkout
         logger.log('Creating checkout session for paid plan...');
         const priceId = STRIPE_PRICES.entrepreneur;

@@ -22,10 +22,10 @@ const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
           <h1 className="text-4xl md:text-5xl font-bold text-light-text mb-4">About Us</h1>
           <div className="prose prose-invert max-w-none">
             <p className="text-lg text-medium-text mb-6">
-              Nectar was founded with the mission to empower individuals to achieve financial independence by unlocking their unique potential. Our AI-driven platform connects you with personalized, vetted opportunities, making it easier than ever to start a successful side hustle.
+              Nectar Forge was founded with the mission to empower individuals to achieve financial independence by unlocking their unique potential. Our AI-driven platform connects you with personalized, vetted opportunities, making it easier than ever to start a successful side hustle.
             </p>
             <p className="text-lg text-medium-text mb-6">
-              We believe that everyone has untapped potential to generate additional income streams. Whether you're looking to supplement your current salary, pursue your passions, or build a path to financial freedom, Nectar is here to help you discover the right opportunities.
+              We believe that everyone has untapped potential to generate additional income streams. Whether you're looking to supplement your current salary, pursue your passions, or build a path to financial freedom, Nectar Forge is here to help you discover the right opportunities.
             </p>
             <h2 className="text-2xl font-bold text-light-text mt-8 mb-4">Our Mission</h2>
             <p className="text-lg text-medium-text">
