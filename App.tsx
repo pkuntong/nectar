@@ -43,7 +43,7 @@ type Page = 'home' | 'pricing' | 'about' | 'privacy' | 'terms' | 'google-oauth-s
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [activeModal, setActiveModal] = useState<'login' | 'signup' | 'pricing' | 'info' | null>(null);
+  const [activeModal, setActiveModal] = useState<'login' | 'pricing' | 'info' | null>(null);
   const [infoType, setInfoType] = useState<'pricing' | 'about' | 'privacy' | 'tos'>('about');
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [showDashboard, setShowDashboard] = useState(true); // Track if we should show dashboard or homepage
@@ -175,10 +175,13 @@ function App() {
   
   const handleNavigateFromDashboard = () => {
     setShowDashboard(false);
+    setActiveModal(null); // Close any modals when navigating
+    setError(null); // Clear any errors
   };
   
   const handleDashboardClick = () => {
     setShowDashboard(true);
+    setError(null); // Clear any errors when navigating to dashboard
   };
 
   const handleError = (errorMessage: string) => {
@@ -265,7 +268,15 @@ function App() {
             />
             <main>
               <Hero
-                onPrimaryClick={() => user ? setShowDashboard(true) : setActiveModal('login')}
+                onPrimaryClick={() => {
+                  setError(null); // Clear any errors
+                  if (user) {
+                    setActiveModal(null); // Close any open modals
+                    setShowDashboard(true);
+                  } else {
+                    setActiveModal('login');
+                  }
+                }}
                 onSecondaryClick={scrollToDemo}
               />
               <HowItWorks />
@@ -289,18 +300,18 @@ function App() {
         <Header
           isLoggedIn={false}
           onLoginClick={() => setActiveModal('login')}
-          onSignUpClick={() => setActiveModal('signup')}
+          onSignUpClick={() => setActiveModal('login')}
           onLogout={handleLogout}
         />
         <main>
-          <Hero 
-            onPrimaryClick={() => setActiveModal('signup')} 
-            onSecondaryClick={scrollToDemo} 
+          <Hero
+            onPrimaryClick={() => setActiveModal('login')}
+            onSecondaryClick={scrollToDemo}
           />
           <HowItWorks />
           <Features />
           <DashboardDemo
-            onSignUpClick={() => setActiveModal('signup')}
+            onSignUpClick={() => setActiveModal('login')}
             onPricingClick={() => handleInfoClick('pricing')}
           />
           <Testimonials />
@@ -315,7 +326,7 @@ function App() {
     <div className="bg-dark-bg min-h-screen font-sans">
       {renderCurrentPage()}
 
-      {error && (
+      {error && error.trim() && (
         <div className="fixed top-4 right-4 bg-red-500 text-white p-4 rounded-lg shadow-lg z-50">
           {error}
           <button onClick={() => setError(null)} className="ml-4 underline">Close</button>
