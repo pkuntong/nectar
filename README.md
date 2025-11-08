@@ -1,126 +1,155 @@
+# Nectar Forge - AI-Powered Side Hustle Generator
+
 <div align="center">
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# Nectar - AI-Powered Side Hustle Generator
+**Production-ready AI platform that helps users discover personalized side hustle opportunities.**
 
-An AI-powered platform that helps users discover personalized side hustle opportunities.
+## 🚀 Quick Start
 
-## 🚀 What's Been Set Up
+### Prerequisites
+- Node.js 18+ and npm
+- Supabase account
+- Stripe account (for payments)
+- Google Cloud Console account (for OAuth)
 
-Your Nectar application is now fully integrated with:
+### Installation
 
-- ✅ **Supabase** - User authentication and database
-- ✅ **Stripe** - Payment processing and subscriptions
-- ✅ **Resend** - Transactional email service
-- ✅ **Sentry** - Error tracking and monitoring
-- ✅ **Gemini AI** - AI-powered recommendations
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/nectar.git
+cd nectar
 
-## 📋 Current Status
+# Install dependencies
+npm install
 
-### What Works Right Now
-- Sign up and login (with Supabase)
-- User session management
-- All UI components
-- Dashboard for logged-in users
-- Sentry error tracking (when configured)
+# Copy environment variables template
+cp .env.example .env
 
-### What Needs Setup
-1. **Supabase credentials** - Required to run the app
-2. **Stripe products** - For payment processing
-3. **Edge Functions deployment** - For payments and emails
-4. **Resend API key** - For sending emails
-5. **Sentry DSN** - For error tracking (optional)
+# Fill in your environment variables (see below)
+```
 
-## 🎯 Quick Start
+### Environment Variables
 
-### Absolute Minimum (10 minutes)
-Just want to see it run with auth?
+Create a `.env` file with:
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+```env
+# Supabase (Required)
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-2. **Create Supabase project** at [supabase.com](https://supabase.com)
+# Stripe (Required for payments)
+VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+VITE_STRIPE_PRICE_FREE=price_xxx
+VITE_STRIPE_PRICE_ENTREPRENEUR=price_xxx
 
-3. **Add credentials to `.env`:**
-   ```env
-   VITE_SUPABASE_URL=your_url_here
-   VITE_SUPABASE_ANON_KEY=your_key_here
-   ```
+# Optional
+VITE_GROQ_API_KEY=your_groq_key
+GEMINI_API_KEY=your_gemini_key
+VITE_SENTRY_DSN=your_sentry_dsn
+```
 
-4. **Run the SQL** from [QUICKSTART.md](QUICKSTART.md) in Supabase SQL Editor
+### Database Setup
 
-5. **Start dev server:**
-   ```bash
-   npm run dev
-   ```
+1. Go to your Supabase Dashboard → SQL Editor
+2. Run the migration files from `supabase/migrations/` in order:
+   - `001_complete_database_setup.sql`
+   - `002_fix_subscriptions_upsert.sql`
+   - `003_add_notification_preferences.sql`
+   - `add_usage_tracking.sql`
 
-You now have a working app with authentication! 🎉
+### Deploy Edge Functions
 
-### Full Setup (1-2 hours)
-Want payments and emails too?
+```bash
+# Install Supabase CLI
+npm install -g supabase
 
-Follow the **[QUICKSTART.md](QUICKSTART.md)** guide for step-by-step instructions.
+# Login to Supabase
+supabase login
+
+# Link your project
+supabase link --project-ref your-project-ref
+
+# Set secrets (required for Edge Functions)
+supabase secrets set STRIPE_SECRET_KEY=your_stripe_secret_key
+supabase secrets set STRIPE_WEBHOOK_SECRET=your_webhook_secret
+supabase secrets set RESEND_API_KEY=your_resend_key
+
+# Deploy functions
+supabase functions deploy create-checkout-session
+supabase functions deploy create-portal-session
+supabase functions deploy stripe-webhook
+supabase functions deploy send-email
+supabase functions deploy delete-user
+```
+
+### Google OAuth Setup
+
+1. Visit `/#google-oauth-setup` in your app
+2. Follow the on-screen instructions to:
+   - Get Google Client ID & Secret from Google Cloud Console
+   - Enable Google provider in Supabase Dashboard
+   - Add redirect URIs
+
+### Run Development Server
+
+```bash
+npm run dev
+```
+
+Visit `http://localhost:3000`
 
 ## 📚 Documentation
 
-We've created comprehensive guides for you:
-
-### Start Here
-- **[QUICKSTART.md](QUICKSTART.md)** - Get running in minutes
-- **[API_INTEGRATION_STATUS.md](API_INTEGRATION_STATUS.md)** - See what's integrated
-
-### Detailed Guides
-- **[SETUP.md](SETUP.md)** - Complete setup instructions for all services
-- **[STRIPE_SETUP.md](STRIPE_SETUP.md)** - Create Stripe products step-by-step
-- **[DEPLOY_EDGE_FUNCTIONS.md](DEPLOY_EDGE_FUNCTIONS.md)** - Deploy backend functions
-- **[INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md)** - Technical integration details
+- **[GOOGLE_OAUTH_SETUP.md](./GOOGLE_OAUTH_SETUP.md)** - Google Sign-In setup guide
+- **[VERCEL_DEPLOYMENT_GUIDE.md](./VERCEL_DEPLOYMENT_GUIDE.md)** - Deploy to Vercel
+- **[PRODUCTION_READINESS_REPORT.md](./PRODUCTION_READINESS_REPORT.md)** - Production checklist
 
 ## 🏗️ Architecture
 
 ```
-Frontend (React + Vite)
-├── Supabase Auth (sign up/login)
-├── Stripe (payments)
+Frontend (React + Vite + TypeScript)
+├── Supabase Auth (email/password + Google OAuth)
+├── Stripe Checkout (subscriptions)
 └── Sentry (error tracking)
 
-Backend (Supabase Edge Functions)
-├── create-checkout-session (Stripe)
-├── stripe-webhook (Stripe events)
-└── send-email (Resend)
+Backend (Supabase Edge Functions - Deno)
+├── create-checkout-session (Stripe checkout)
+├── create-portal-session (Stripe customer portal)
+├── stripe-webhook (Stripe event handling)
+├── send-email (Resend email service)
+└── delete-user (Account deletion)
 
 Database (Supabase PostgreSQL)
-├── auth.users (managed by Supabase)
-├── user_profiles (custom)
-└── subscriptions (custom)
+├── auth.users (Supabase Auth)
+├── user_profiles (user data)
+├── subscriptions (Stripe subscriptions)
+└── usage_tracking (API usage limits)
 ```
 
-## 🔑 Environment Variables
+## 🎯 Features
 
-Your `.env` file has been created from `.env.example`. You need to fill in:
+### ✅ Implemented
+- User authentication (email/password + Google OAuth)
+- Subscription management (Free & Entrepreneur tiers)
+- Stripe payment integration
+- Email notifications (Resend)
+- Error tracking (Sentry)
+- Usage limits and tracking
+- Responsive UI/UX
+- Production-ready security
 
-**Required:**
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
-
-**Optional (but recommended):**
-- `GEMINI_API_KEY`
-- `VITE_STRIPE_PUBLISHABLE_KEY`
-- `STRIPE_SECRET_KEY`
-- `RESEND_API_KEY`
-- `VITE_SENTRY_DSN`
-
-**Note:** Never commit `.env` to Git. It's already in `.gitignore`.
+### 🔄 Coming Soon
+- AI-powered side hustle recommendations
+- Advanced analytics dashboard
+- Progress tracking
+- Community features
 
 ## 🛠️ Development
 
 ```bash
-# Install dependencies
-npm install
-
-# Start development server
+# Development server
 npm run dev
 
 # Build for production
@@ -128,143 +157,121 @@ npm run build
 
 # Preview production build
 npm run preview
+
+# Type checking
+npm run type-check
+
+# Linting
+npm run lint
 ```
-
-## 📦 What's Included
-
-### Components
-- `Header` - Navigation with login/signup
-- `Hero` - Landing page hero section
-- `Features` - Feature showcase
-- `Pricing` - Subscription plans with Stripe integration
-- `Dashboard` - User dashboard (requires auth)
-- `Login` - Login form
-- `SignUp` - Registration form
-
-### Integrations
-- `lib/supabase.ts` - Supabase client
-- `lib/stripe.ts` - Stripe integration
-- `lib/resend.ts` - Email templates (for reference)
-- `lib/sentry.ts` - Error tracking
-
-### Backend Functions
-- `supabase/functions/create-checkout-session` - Stripe checkout
-- `supabase/functions/stripe-webhook` - Handle Stripe events
-- `supabase/functions/send-email` - Send transactional emails
-- `supabase/functions/delete-user` - Permanently delete user accounts
-
-## 🎨 Customization
-
-### Update Branding
-- Colors defined in `index.css`
-- Logo and app name in components
-- Email templates in `supabase/functions/send-email`
-
-### Update Pricing
-1. Create products in Stripe Dashboard
-2. Update price IDs in `lib/stripe.ts`
-3. Adjust pricing display in `components/Pricing.tsx`
 
 ## 🚢 Deployment
 
-### Frontend
-Deploy to:
-- Vercel (recommended)
-- Netlify
-- Cloudflare Pages
+### Frontend (Vercel - Recommended)
 
-### Backend (Edge Functions)
-Deploy to Supabase:
-```bash
-supabase functions deploy
-```
+1. Push to GitHub
+2. Import project in Vercel
+3. Add environment variables
+4. Deploy!
 
-See [DEPLOY_EDGE_FUNCTIONS.md](DEPLOY_EDGE_FUNCTIONS.md) for details.
+See [VERCEL_DEPLOYMENT_GUIDE.md](./VERCEL_DEPLOYMENT_GUIDE.md) for details.
+
+### Backend (Supabase Edge Functions)
+
+Already deployed via Supabase CLI (see Deploy Edge Functions above).
 
 ## 🔒 Security
 
-- ✅ Environment variables properly separated (public vs private)
-- ✅ Sensitive operations (payments, emails) in Edge Functions
-- ✅ Row Level Security enabled on database tables
-- ✅ Supabase Auth handles password security
-- ✅ Stripe handles payment security
+- ✅ Environment variables properly separated
+- ✅ Sensitive operations in Edge Functions
+- ✅ Row Level Security (RLS) enabled
 - ✅ HTTPS enforced in production
+- ✅ OAuth secrets stored securely
+- ✅ Stripe webhook signature verification
 
 ## 📊 Database Schema
 
-### user_profiles
-- `id` - References auth.users
-- `full_name` - User's name
-- `subscription_tier` - Current plan (free/entrepreneur)
-- `stripe_customer_id` - Stripe customer reference
+### `user_profiles`
+- `id` (UUID, references auth.users)
+- `full_name` (text)
+- `subscription_tier` (enum: 'free', 'entrepreneur')
+- `stripe_customer_id` (text, nullable)
+- `created_at`, `updated_at` (timestamps)
 
-### subscriptions
-- `id` - Unique ID
-- `user_id` - References auth.users
-- `stripe_subscription_id` - Stripe subscription reference
-- `status` - Subscription status
-- `plan_name` - Plan type
+### `subscriptions`
+- `id` (UUID, primary key)
+- `user_id` (UUID, references auth.users)
+- `stripe_subscription_id` (text, unique)
+- `stripe_price_id` (text)
+- `status` (text)
+- `plan_name` (text)
+- `current_period_end` (timestamp)
+
+### `usage_tracking`
+- `id` (UUID, primary key)
+- `user_id` (UUID, references auth.users)
+- `action_type` (text)
+- `count` (integer)
+- `period_start`, `period_end` (timestamps)
 
 ## 🧪 Testing
 
 ### Test Authentication
-1. Sign up with a test email
-2. Log in
-3. Access dashboard
+- Sign up with email/password
+- Sign in with Google OAuth
+- Test password reset flow
 
-### Test Payments (in Test Mode)
-Use Stripe test cards:
-- Success: `4242 4242 4242 4242`
-- Decline: `4000 0000 0000 0002`
+### Test Payments (Stripe Test Mode)
+- Use test card: `4242 4242 4242 4242`
+- Test subscription creation
+- Test subscription cancellation via portal
 
-### Test Emails
-Sign up with your real email to receive welcome message.
+### Test Edge Functions
+- Check Supabase Dashboard → Edge Functions → Logs
+- Verify webhook events in Stripe Dashboard
 
 ## 🐛 Troubleshooting
 
-See [QUICKSTART.md](QUICKSTART.md#getting-help) for common issues and solutions.
+**OAuth not working?**
+- Check [GOOGLE_OAUTH_SETUP.md](./GOOGLE_OAUTH_SETUP.md)
+- Verify redirect URIs in Google Cloud Console
+- Ensure Client Secret is saved in Supabase
 
-**Common Issues:**
-- Missing environment variables → Check `.env` file
-- Stripe not working → Update price IDs in `lib/stripe.ts`
-- Emails not sending → Deploy Edge Functions and set Resend key
+**Payments not working?**
+- Verify Stripe keys are set correctly
+- Check Edge Functions are deployed
+- Verify webhook endpoint in Stripe Dashboard
 
-## 📱 Features
+**Database errors?**
+- Run migrations in order
+- Check RLS policies are enabled
+- Verify service role key permissions
 
-### Current
-- User authentication (email/password)
-- Subscription tiers (Free & Paid)
-- Stripe checkout integration
-- Email notifications
-- Error tracking with Sentry
+## 📦 Tech Stack
 
-### Coming Soon
-- AI-powered side hustle recommendations
-- User analytics dashboard
-- Progress tracking
-- Community features
+- **Frontend:** React 18, TypeScript, Vite, Tailwind CSS
+- **Backend:** Supabase Edge Functions (Deno)
+- **Database:** PostgreSQL (Supabase)
+- **Auth:** Supabase Auth
+- **Payments:** Stripe
+- **Email:** Resend
+- **Monitoring:** Sentry
+- **AI:** Groq, Gemini
 
-## 🤝 Support
+## 📄 License
 
-- Check the documentation files in this repository
-- Review error messages in console
-- Check Sentry dashboard for errors
-- Refer to service documentation:
-  - [Supabase Docs](https://supabase.com/docs)
-  - [Stripe Docs](https://stripe.com/docs)
-  - [Resend Docs](https://resend.com/docs)
+[Your License Here]
+
+## 🤝 Contributing
+
+[Your Contributing Guidelines Here]
+
+## 📞 Support
+
+- Documentation: Check the `/docs` folder
+- Issues: GitHub Issues
+- Email: support@nectarforge.app
 
 ---
 
-## Next Steps
-
-1. **Read [QUICKSTART.md](QUICKSTART.md)** to get started
-2. **Set up Supabase** (required)
-3. **Configure Stripe** (for payments)
-4. **Deploy Edge Functions** (for full functionality)
-5. **Test everything** works
-6. **Launch your app!** 🚀
-
-Need help? Start with the QUICKSTART guide and work through the setup step by step.
-
-**Happy building! 💪**
+**Built with ❤️ for entrepreneurs and side hustlers**
