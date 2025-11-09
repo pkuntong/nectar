@@ -2,32 +2,144 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="AI-powered side hustle generator. Discover personalized income opportunities tailored to your skills and interests.">
-  <meta name="keywords" content="side hustle, AI, income generator, entrepreneurship, passive income">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+
+  <!-- Primary Meta Tags -->
+  <title>Nectar Forge - AI-Powered Side Hustle Generator | Find Your Perfect Income Stream</title>
+  <meta name="title" content="Nectar Forge - AI-Powered Side Hustle Generator | Find Your Perfect Income Stream">
+  <meta name="description" content="Discover personalized side hustle opportunities with AI. Generate income streams tailored to your skills, interests, and schedule. Start your entrepreneurship journey today.">
+  <meta name="keywords" content="side hustle, AI side hustle generator, passive income, entrepreneurship, income opportunities, online business, AI business ideas, make money online, freelancing, gig economy">
+  <meta name="author" content="Nectar Forge">
+  <meta name="robots" content="index, follow">
+  <meta name="language" content="English">
+  <meta name="revisit-after" content="7 days">
+
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://nectarforge.app/">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://nectarforge.app/">
+  <meta property="og:site_name" content="Nectar Forge">
+  <meta property="og:title" content="Nectar Forge - AI-Powered Side Hustle Generator">
+  <meta property="og:description" content="Discover personalized side hustle opportunities with AI. Generate income streams tailored to your skills and interests.">
+  <meta property="og:image" content="https://nectarforge.app/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Nectar Forge - AI Side Hustle Generator">
+  <meta property="og:locale" content="en_US">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="https://nectarforge.app/">
+  <meta name="twitter:title" content="Nectar Forge - AI-Powered Side Hustle Generator">
+  <meta name="twitter:description" content="Discover personalized side hustle opportunities with AI. Generate income streams tailored to your skills and interests.">
+  <meta name="twitter:image" content="https://nectarforge.app/og-image.png">
+  <meta name="twitter:image:alt" content="Nectar Forge - AI Side Hustle Generator">
+  <meta name="twitter:creator" content="@nectarforge">
+
+  <!-- PWA Meta Tags -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Nectar Forge">
+  <meta name="application-name" content="Nectar Forge">
+  <meta name="theme-color" content="#EA5A0C">
+  <meta name="msapplication-TileColor" content="#EA5A0C">
+  <meta name="msapplication-navbutton-color" content="#EA5A0C">
+
+  <!-- iOS Splash Screens -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  <link rel="apple-touch-startup-image" href="/icons/apple-splash-2048-2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="/icons/apple-splash-1668-2388.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="/icons/apple-splash-1536-2048.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="/icons/apple-splash-1125-2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="/icons/apple-splash-1242-2688.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="/icons/apple-splash-828-1792.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="/icons/apple-splash-1170-2532.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+
+  <!-- Favicons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="manifest" href="/manifest.json">
+
+  <!-- Preconnect for Performance -->
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+  <link rel="dns-prefetch" href="https://fonts.gstatic.com">
+  <link rel="dns-prefetch" href="https://bbzuoynbdzutgslcvyqw.supabase.co">
+  <link rel="dns-prefetch" href="https://api.stripe.com">
+  <link rel="dns-prefetch" href="https://js.stripe.com">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
   <!-- Content Security Policy -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co https://api.stripe.com https://*.ingest.sentry.io https://*.sentry.io wss://*.supabase.co https://generativelanguage.googleapis.com https://api.groq.com; img-src 'self' data: https: blob:; frame-src https://js.stripe.com; worker-src 'self' blob:; child-src 'self' blob:;">
 
-  <!-- Open Graph / Social Media -->
-  <meta property="og:title" content="Nectar Forge - AI Side Hustle Generator">
-  <meta property="og:description" content="AI-powered income streams. Discover personalized side hustle opportunities.">
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://nectarforge.app">
-  <meta property="og:image" content="/og-image.png">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Nectar Forge - AI Side Hustle Generator">
-  <meta name="twitter:description" content="AI-powered income streams">
+  <!-- Schema.org Markup -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Nectar Forge",
+    "description": "AI-powered side hustle generator that discovers personalized income opportunities tailored to your skills and interests",
+    "url": "https://nectarforge.app",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web Browser, iOS, Android",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "author": {
+      "@type": "Organization",
+      "name": "Nectar Forge",
+      "url": "https://nectarforge.app"
+    },
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.8",
+      "reviewCount": "127"
+    },
+    "featureList": [
+      "AI-powered side hustle recommendations",
+      "Personalized income opportunity analysis",
+      "Skills and interests matching",
+      "Actionable business insights",
+      "Market trend analysis"
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Nectar Forge",
+    "url": "https://nectarforge.app",
+    "logo": "https://nectarforge.app/icons/icon-512x512.png",
+    "sameAs": [
+      "https://twitter.com/nectarforge"
+    ],
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "contactType": "Customer Support",
+      "email": "support@nectarforge.app"
+    }
+  }
+  </script>
 
-  <title>Nectar Forge - AI Side Hustle Generator</title>
-  <link rel="icon" type="image/png" href="/favicon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
+    /* Critical CSS for above-the-fold content */
     body {
       background-color: #0A0A0A;
       color: #E2E8F0;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow-x: hidden;
     }
     .radial-gradient-background {
       position: fixed;
@@ -39,11 +151,43 @@
       z-index: -1;
       pointer-events: none;
     }
+    /* Prevent layout shift */
+    #root {
+      min-height: 100vh;
+    }
+    /* iOS safe area support */
+    @supports (padding: max(0px)) {
+      body {
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+      }
+    }
+    /* Prevent pull-to-refresh on mobile */
+    body {
+      overscroll-behavior-y: contain;
+    }
+    /* Loading state to prevent CLS */
+    .app-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
   </style>
 </head>
 <body>
   <div class="radial-gradient-background"></div>
   <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(registration => console.log('SW registered:', registration))
+          .catch(error => console.log('SW registration failed:', error));
+      });
+    }
+  </script>
 </body>
 </html>

@@ -25,8 +25,8 @@ const DashboardHome: React.FC = () => {
     }, []);
 
     return (
-        <div className="p-8 animate-fade-in-up">
-            <h2 className="text-3xl font-bold text-light-text mb-6">Overview</h2>
+        <div className="p-4 md:p-8 animate-fade-in-up">
+            <h2 className="text-2xl md:text-3xl font-bold text-light-text mb-6">Overview</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-dark-card border border-dark-card-border p-6 rounded-lg">
                     <h3 className="text-medium-text font-semibold">Saved Hustles</h3>
@@ -791,7 +791,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToHome }) => 
       <Sidebar activeItem={activeView} onItemClick={setActiveView} onLogoClick={handleNavigateHome} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <DashboardHeader userName={userName} onLogout={onLogout} />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-dark-bg/80">
+        {/* Add pb-20 on mobile to account for bottom navigation, md:pb-0 for desktop */}
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-dark-bg/80 pb-20 md:pb-0">
           {renderContent()}
         </main>
       </div>

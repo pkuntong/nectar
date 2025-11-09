@@ -9,7 +9,14 @@ export default defineConfig(({ mode }) => {
         port: 3000,
         host: '0.0.0.0',
       },
-      plugins: [react()],
+      plugins: [
+        react({
+          // Fast Refresh for better DX
+          fastRefresh: true,
+          // Optimize JSX transform
+          jsxRuntime: 'automatic',
+        })
+      ],
       define: {
         // ✅ SAFE - Only expose public environment variables to the frontend
         // These are prefixed with VITE_ and are safe to expose
@@ -32,22 +39,71 @@ export default defineConfig(({ mode }) => {
         // These should ONLY be in Supabase Edge Function secrets
       },
       build: {
+        // Target modern browsers for smaller bundles
+        target: 'es2020',
+        // Minify with terser for better compression
+        minify: 'terser',
+        terserOptions: {
+          compress: {
+            drop_console: mode === 'production',
+            drop_debugger: mode === 'production',
+            pure_funcs: mode === 'production' ? ['console.log', 'console.info'] : [],
+          },
+        },
+        // Optimize CSS
+        cssMinify: true,
+        // Source maps for production debugging (small overhead)
+        sourcemap: mode !== 'production',
         rollupOptions: {
           output: {
-            manualChunks: {
-              // Vendor chunks for better caching
-              'vendor-react': ['react', 'react-dom'],
-              'vendor-supabase': ['@supabase/supabase-js'],
-              'vendor-genai': ['@google/genai'],
-              // Don't split Stripe - it needs its locale files together
-            }
+            // Improved code splitting for better caching
+            manualChunks: (id) => {
+              // Vendor chunks for better long-term caching
+              if (id.includes('node_modules')) {
+                if (id.includes('react') || id.includes('react-dom')) {
+                  return 'vendor-react';
+                }
+                if (id.includes('@supabase')) {
+                  return 'vendor-supabase';
+                }
+                if (id.includes('@google/genai')) {
+                  return 'vendor-genai';
+                }
+                if (id.includes('@sentry')) {
+                  return 'vendor-sentry';
+                }
+                if (id.includes('stripe')) {
+                  return 'vendor-stripe';
+                }
+                // All other node_modules
+                return 'vendor';
+              }
+            },
+            // Better chunk naming for caching
+            chunkFileNames: 'assets/[name]-[hash].js',
+            entryFileNames: 'assets/[name]-[hash].js',
+            assetFileNames: 'assets/[name]-[hash].[ext]',
           }
         },
         chunkSizeWarningLimit: 1000,
+        // Report compressed size
+        reportCompressedSize: true,
         commonjsOptions: {
           // Help with Stripe's CommonJS modules
           transformMixedEsModules: true
         }
+      },
+      // Performance optimizations
+      optimizeDeps: {
+        include: [
+          'react',
+          'react-dom',
+          '@supabase/supabase-js',
+          '@stripe/stripe-js',
+          'react-hot-toast'
+        ],
+        // Exclude large dependencies that should be lazy-loaded
+        exclude: ['@google/genai'],
       },
       resolve: {
         alias: {

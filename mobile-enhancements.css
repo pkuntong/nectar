@@ -1,0 +1,445 @@
+/* Mobile Web Optimizations for Native-like Experience */
+
+/* ==========================================
+   Touch & Gesture Enhancements
+   ========================================== */
+
+/* Smooth touch scrolling */
+* {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Prevent text selection during gestures (keep for inputs) */
+body {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Allow selection for text elements */
+input,
+textarea,
+[contenteditable],
+.selectable {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Touch target sizing - minimum 44x44px for accessibility */
+button,
+a,
+input[type="button"],
+input[type="submit"],
+[role="button"],
+[onclick] {
+  min-height: 44px;
+  min-width: 44px;
+  touch-action: manipulation;
+}
+
+/* Disable double-tap zoom on buttons */
+button,
+a {
+  touch-action: manipulation;
+}
+
+/* ==========================================
+   iOS Safe Area Support
+   ========================================== */
+
+@supports (padding: max(0px)) {
+  .safe-area-inset-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-inset-left {
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .safe-area-inset-right {
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* ==========================================
+   Prevent Overscroll (Pull-to-Refresh)
+   ========================================== */
+
+body {
+  overscroll-behavior-y: contain;
+  overscroll-behavior-x: none;
+}
+
+/* Allow overscroll for specific scrollable containers */
+.allow-overscroll {
+  overscroll-behavior-y: auto;
+}
+
+/* ==========================================
+   Native-like Animations & Transitions
+   ========================================== */
+
+/* Smooth page transitions */
+.page-transition {
+  animation: slideInRight 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Modal slide-up animation (iOS-style) */
+.modal-enter {
+  animation: modalSlideUp 0.4s cubic-bezier(0.36, 0.66, 0.04, 1);
+}
+
+@keyframes modalSlideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* ==========================================
+   Touch Feedback & Ripple Effects
+   ========================================== */
+
+/* Active touch state */
+.touchable {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
+.touchable:active {
+  transform: scale(0.97);
+  opacity: 0.8;
+}
+
+/* Ripple effect container */
+.ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.ripple:active::after {
+  width: 300px;
+  height: 300px;
+}
+
+/* ==========================================
+   Swipe Gestures
+   ========================================== */
+
+/* Swipeable cards */
+.swipeable {
+  touch-action: pan-y;
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.swipeable.swiping {
+  transition: none;
+}
+
+.swipeable.swipe-left {
+  transform: translateX(-100%);
+  opacity: 0;
+}
+
+.swipeable.swipe-right {
+  transform: translateX(100%);
+  opacity: 0;
+}
+
+/* Pull-to-refresh indicator */
+.pull-to-refresh {
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease;
+}
+
+.pull-to-refresh.pulling {
+  transform: translateX(-50%) translateY(60px);
+}
+
+/* ==========================================
+   Performance Optimizations
+   ========================================== */
+
+/* Hardware acceleration for smooth animations */
+.hw-accelerate {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Optimize repaints */
+.optimize-repaint {
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* ==========================================
+   Bottom Navigation (App-like)
+   ========================================== */
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(10, 10, 10, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 100;
+}
+
+/* ==========================================
+   Native Scrollbar Hiding (iOS/Android style)
+   ========================================== */
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ==========================================
+   Loading States & Skeletons
+   ========================================== */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ==========================================
+   Form Input Enhancements (Mobile)
+   ========================================== */
+
+/* Remove iOS input shadows */
+input,
+textarea,
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  border-radius: 12px;
+}
+
+/* Zoom prevention on iOS */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+textarea {
+  font-size: 16px; /* Prevents auto-zoom on iOS */
+}
+
+/* Focus state for better visibility */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 2px solid #EA5A0C;
+  outline-offset: 2px;
+}
+
+/* ==========================================
+   Haptic Feedback Simulation
+   ========================================== */
+
+.haptic-light:active {
+  animation: haptic-light 0.1s;
+}
+
+.haptic-medium:active {
+  animation: haptic-medium 0.15s;
+}
+
+@keyframes haptic-light {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(0.98); }
+}
+
+@keyframes haptic-medium {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(0.95); }
+}
+
+/* ==========================================
+   Card Interactions (Native-like)
+   ========================================== */
+
+.interactive-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.interactive-card:active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Long-press effect */
+.long-press {
+  position: relative;
+}
+
+.long-press::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 2px solid #EA5A0C;
+  border-radius: inherit;
+  opacity: 0;
+  animation: long-press-pulse 2s infinite;
+}
+
+@keyframes long-press-pulse {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.05);
+  }
+}
+
+/* ==========================================
+   Responsive Text Scaling
+   ========================================== */
+
+@media (max-width: 375px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+@media (min-width: 376px) and (max-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+/* ==========================================
+   Dark Mode Optimizations
+   ========================================== */
+
+@media (prefers-color-scheme: dark) {
+  /* Already dark by default, but ensure consistency */
+  body {
+    background-color: #0A0A0A;
+    color: #E2E8F0;
+  }
+}
+
+/* ==========================================
+   Accessibility - Reduced Motion
+   ========================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==========================================
+   Landscape Orientation Adjustments
+   ========================================== */
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .hero-section {
+    min-height: auto;
+    padding: 2rem 0;
+  }
+
+  .modal {
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+}

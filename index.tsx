@@ -1,6 +1,9 @@
 // Import Tailwind CSS
 import './src/index.css';
 
+// Import Mobile Enhancements
+import './mobile-enhancements.css';
+
 // Validate environment variables first
 import './lib/env';
 
