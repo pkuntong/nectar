@@ -2,14 +2,10 @@
 const CACHE_NAME = 'nectar-forge-v1';
 const RUNTIME_CACHE = 'nectar-forge-runtime';
 
-// Resources to cache on install
+// Resources to cache on install (only cache files that definitely exist)
 const STATIC_CACHE_URLS = [
   '/',
-  '/index.html',
-  '/favicon.png',
-  '/manifest.json',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png'
+  '/index.html'
 ];
 
 // Install event - cache static resources
@@ -19,9 +15,21 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('Service Worker: Caching static files');
-        return cache.addAll(STATIC_CACHE_URLS);
+        // Cache each file individually to avoid complete failure if one file is missing
+        return Promise.allSettled(
+          STATIC_CACHE_URLS.map(url =>
+            cache.add(url).catch(err => {
+              console.warn(`Failed to cache ${url}:`, err);
+              return null;
+            })
+          )
+        );
       })
       .then(() => self.skipWaiting())
+      .catch(err => {
+        console.error('Service Worker: Install failed', err);
+        return self.skipWaiting(); // Still activate even if caching fails
+      })
   );
 });
 

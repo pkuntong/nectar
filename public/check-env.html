@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Environment Variables Check - Nectar Forge</title>
+  <style>
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0A0A0A;
+      color: #E2E8F0;
+      padding: 2rem;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: #EA5A0C;
+      margin-bottom: 2rem;
+    }
+    .check {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    .status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-weight: bold;
+      margin-left: 1rem;
+    }
+    .ok {
+      background: #10b981;
+      color: white;
+    }
+    .missing {
+      background: #ef4444;
+      color: white;
+    }
+    .var-name {
+      color: #60a5fa;
+      font-weight: bold;
+    }
+    .var-value {
+      color: #a3e635;
+      font-family: monospace;
+      word-break: break-all;
+    }
+    .warning {
+      background: #fbbf24;
+      color: #000;
+      padding: 1rem;
+      border-radius: 8px;
+      margin: 2rem 0;
+    }
+    .info {
+      background: #3b82f6;
+      color: white;
+      padding: 1rem;
+      border-radius: 8px;
+      margin: 1rem 0;
+    }
+    code {
+      background: #1a1a1a;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 Environment Variables Diagnostic</h1>
+
+  <div class="info">
+    <strong>📍 Purpose:</strong> This page checks if your Vercel environment variables are being built into your app correctly.
+  </div>
+
+  <div id="results"></div>
+
+  <div class="warning" id="solution" style="display: none;">
+    <h3>⚠️ Fix Required</h3>
+    <p>Some environment variables are missing. To fix:</p>
+    <ol>
+      <li>Go to <a href="https://vercel.com/dashboard" target="_blank" style="color: #000; font-weight: bold;">Vercel Dashboard</a></li>
+      <li>Select your <strong>nectar</strong> project</li>
+      <li>Go to <strong>Settings → Environment Variables</strong></li>
+      <li>For each missing variable below:
+        <ul>
+          <li>Click "Add New"</li>
+          <li>Enter the variable name and value</li>
+          <li><strong>IMPORTANT:</strong> Check the "Production" checkbox</li>
+          <li>Click "Save"</li>
+        </ul>
+      </li>
+      <li>Go to <strong>Deployments</strong> tab</li>
+      <li>Click the latest deployment's ⋯ menu → <strong>Redeploy</strong></li>
+      <li>Uncheck "Use existing Build Cache"</li>
+      <li>Click <strong>Redeploy</strong></li>
+    </ol>
+    <p><strong>See <a href="/VERCEL_STRIPE_FIX.md" style="color: #000; font-weight: bold;">VERCEL_STRIPE_FIX.md</a> for detailed instructions.</strong></p>
+  </div>
+
+  <script type="module">
+    // This needs to be a module script to access import.meta.env
+    const requiredVars = [
+      { name: 'VITE_STRIPE_PUBLISHABLE_KEY', displayValue: (v) => v ? `${v.substring(0, 15)}...` : 'MISSING' },
+      { name: 'VITE_STRIPE_PRICE_FREE', displayValue: (v) => v || 'MISSING' },
+      { name: 'VITE_STRIPE_PRICE_ENTREPRENEUR', displayValue: (v) => v || 'MISSING' },
+      { name: 'VITE_SUPABASE_URL', displayValue: (v) => v || 'MISSING' },
+      { name: 'VITE_SUPABASE_ANON_KEY', displayValue: (v) => v ? `${v.substring(0, 20)}...` : 'MISSING' },
+      { name: 'VITE_GROQ_API_KEY', displayValue: (v) => v ? `${v.substring(0, 15)}...` : 'MISSING' },
+      { name: 'VITE_SENTRY_DSN', displayValue: (v) => v ? `${v.substring(0, 30)}...` : 'MISSING' }
+    ];
+
+    const results = document.getElementById('results');
+    const solution = document.getElementById('solution');
+    let allOk = true;
+    let missingCount = 0;
+
+    requiredVars.forEach(({ name, displayValue }) => {
+      const value = import.meta.env[name];
+      const exists = !!value;
+
+      if (!exists) {
+        allOk = false;
+        missingCount++;
+      }
+
+      const div = document.createElement('div');
+      div.className = 'check';
+      div.innerHTML = `
+        <div>
+          <span class="var-name">${name}</span>
+          <span class="status ${exists ? 'ok' : 'missing'}">${exists ? '✓ OK' : '✗ MISSING'}</span>
+        </div>
+        ${exists ? `<div style="margin-top: 0.5rem; opacity: 0.7;">Value: <span class="var-value">${displayValue(value)}</span></div>` : ''}
+      `;
+      results.appendChild(div);
+    });
+
+    // Summary
+    const summary = document.createElement('div');
+    summary.className = allOk ? 'info' : 'warning';
+    summary.innerHTML = allOk
+      ? `<strong>✅ All environment variables are configured correctly!</strong><br>Your Stripe integration should work.`
+      : `<strong>❌ ${missingCount} environment variable${missingCount > 1 ? 's are' : ' is'} missing!</strong><br>Your Stripe integration will NOT work until these are added.`;
+    results.insertBefore(summary, results.firstChild);
+
+    if (!allOk) {
+      solution.style.display = 'block';
+    }
+
+    // Also log to console
+    console.log('=== Environment Variables Check ===');
+    console.log('Status:', allOk ? '✅ OK' : `❌ ${missingCount} missing`);
+    requiredVars.forEach(({ name, displayValue }) => {
+      const value = import.meta.env[name];
+      console.log(`${name}:`, value ? displayValue(value) : '❌ MISSING');
+    });
+    console.log('===================================');
+  </script>
+
+  <div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #333; opacity: 0.5;">
+    <p><strong>Note:</strong> This is a diagnostic page. Delete <code>/public/check-env.html</code> after fixing the issues.</p>
+    <p><a href="/" style="color: #EA5A0C;">← Back to Home</a></p>
+  </div>
+</body>
+</html>

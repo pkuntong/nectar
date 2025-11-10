@@ -42,8 +42,23 @@ if (!STRIPE_PRICES.free || !STRIPE_PRICES.entrepreneur) {
 export const createCheckoutSession = async (priceId: string) => {
   // Check if Stripe is properly configured
   if (!stripePublishableKey || !STRIPE_PRICES.free || !STRIPE_PRICES.entrepreneur) {
-    const error = 'Stripe is not properly configured. Please add required environment variables in Vercel.';
+    const missing = [];
+    if (!stripePublishableKey) missing.push('VITE_STRIPE_PUBLISHABLE_KEY');
+    if (!STRIPE_PRICES.free) missing.push('VITE_STRIPE_PRICE_FREE');
+    if (!STRIPE_PRICES.entrepreneur) missing.push('VITE_STRIPE_PRICE_ENTREPRENEUR');
+
+    const error = `Stripe configuration error: Missing ${missing.join(', ')}. ` +
+      `If on Vercel: 1) Add these env vars in Settings → Environment Variables. ` +
+      `2) Check "Production" checkbox for each. 3) Redeploy. See VERCEL_STRIPE_FIX.md for help.`;
+
     logger.error(error);
+    console.error('🔴 Stripe Config Check:', {
+      publishableKey: stripePublishableKey ? `${stripePublishableKey.substring(0, 15)}...` : 'MISSING',
+      freePrice: STRIPE_PRICES.free || 'MISSING',
+      entrepreneurPrice: STRIPE_PRICES.entrepreneur || 'MISSING',
+      missingVars: missing
+    });
+
     return {
       sessionId: null,
       url: null,
