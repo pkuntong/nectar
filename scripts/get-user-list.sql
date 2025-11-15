@@ -9,7 +9,7 @@
 
 SELECT
     up.id,
-    up.email,
+    au.email,
     up.full_name,
     up.created_at,
     up.subscription_tier,
@@ -30,7 +30,7 @@ LIMIT 50;
 
 SELECT
     up.id,
-    up.email,
+    au.email,
     up.full_name,
     up.created_at,
     up.subscription_tier,
@@ -52,7 +52,7 @@ LIMIT 50;
 
 SELECT DISTINCT
     up.id,
-    up.email,
+    au.email,
     up.full_name,
     up.created_at,
     up.subscription_tier,
@@ -65,7 +65,7 @@ WHERE up.subscription_tier = 'free'
     AND up.id NOT IN (
         SELECT user_id FROM subscriptions WHERE status = 'active'
     )
-GROUP BY up.id, up.email, up.full_name, up.created_at, up.subscription_tier
+GROUP BY up.id, au.email, up.full_name, up.created_at, up.subscription_tier
 HAVING COUNT(ut.id) >= 5
 ORDER BY total_generations DESC
 LIMIT 30;
@@ -77,7 +77,7 @@ LIMIT 30;
 
 SELECT
     up.id,
-    up.email,
+    au.email,
     up.full_name,
     up.created_at,
     up.subscription_tier,
@@ -98,10 +98,10 @@ LIMIT 20;
 -- Get a quick overview of your user base
 
 SELECT
-    subscription_tier,
+    up.subscription_tier,
     COUNT(*) as user_count,
-    COUNT(*) FILTER (WHERE last_sign_in_at > NOW() - INTERVAL '7 days') as active_last_7_days,
-    COUNT(*) FILTER (WHERE last_sign_in_at < NOW() - INTERVAL '30 days') as churned_30_days
+    COUNT(*) FILTER (WHERE au.last_sign_in_at > NOW() - INTERVAL '7 days') as active_last_7_days,
+    COUNT(*) FILTER (WHERE au.last_sign_in_at < NOW() - INTERVAL '30 days') as churned_30_days
 FROM user_profiles up
 JOIN auth.users au ON up.id = au.id
-GROUP BY subscription_tier;
+GROUP BY up.subscription_tier;
