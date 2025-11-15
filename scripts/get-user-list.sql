@@ -49,25 +49,24 @@ LIMIT 50;
 -- ====================
 -- Users who hit the 5/week limit but didn't convert to paid
 -- These people saw the paywall and said NO - we need to know why
+-- Note: Usage is tracked in user_profiles.usage_count, not a separate table
 
-SELECT DISTINCT
+SELECT
     up.id,
     au.email,
     up.full_name,
     up.created_at,
     up.subscription_tier,
-    COUNT(ut.id) as total_generations
+    up.usage_count as total_generations
 FROM user_profiles up
 JOIN auth.users au ON up.id = au.id
-LEFT JOIN usage_tracking ut ON up.id = ut.user_id
 WHERE up.subscription_tier = 'free'
     AND au.email IS NOT NULL
+    AND up.usage_count >= 5
     AND up.id NOT IN (
         SELECT user_id FROM subscriptions WHERE status = 'active'
     )
-GROUP BY up.id, au.email, up.full_name, up.created_at, up.subscription_tier
-HAVING COUNT(ut.id) >= 5
-ORDER BY total_generations DESC
+ORDER BY up.usage_count DESC
 LIMIT 30;
 
 -- ====================
