@@ -31,25 +31,22 @@ export function validateEnv() {
     const errorMessage = `Missing required environment variables:\n${missing.map(v => `  - ${v}`).join('\n')}\n\nPlease add them to your .env file.`;
     console.error(errorMessage);
     
-    // In production, show a user-friendly error instead of crashing
-    if (import.meta.env.MODE === 'production') {
-      // Don't throw - let the app render with a graceful error message
-      // The app will show an error state instead
-      console.error('App will run in limited mode due to missing environment variables');
-      // Still check optional vars
-      const missingOptional: string[] = [];
-      optionalEnvVars.forEach(key => {
-        if (!import.meta.env[key] && !process.env[key]) {
-          missingOptional.push(key);
-        }
-      });
-      if (missingOptional.length > 0) {
-        console.warn(`Optional environment variables not set:\n${missingOptional.map(v => `  - ${v}`).join('\n')}`);
-      }
-      return false;
-    }
+    // Don't throw - let the app render with warnings
+    // The app will show errors when trying to use features that require these vars
+    console.warn('⚠️  App will run in limited mode due to missing environment variables');
+    console.warn('⚠️  Some features may not work correctly without these variables.');
     
-    throw new Error(errorMessage);
+    // Still check optional vars
+    const missingOptional: string[] = [];
+    optionalEnvVars.forEach(key => {
+      if (!import.meta.env[key] && !process.env[key]) {
+        missingOptional.push(key);
+      }
+    });
+    if (missingOptional.length > 0) {
+      console.warn(`Optional environment variables not set:\n${missingOptional.map(v => `  - ${v}`).join('\n')}`);
+    }
+    return false;
   }
 
   // Warn about missing optional variables
@@ -65,16 +62,13 @@ export function validateEnv() {
   }
 }
 
-// Validate on module load (but don't crash in production)
+// Validate on module load (but don't crash the app)
 if (import.meta.env.MODE !== 'test') {
   try {
     validateEnv();
   } catch (error) {
-    // In development, throw to show error immediately
-    if (import.meta.env.DEV) {
-      throw error;
-    }
-    // In production, log but don't crash
+    // Log error but don't crash - let the app load and show errors when features are used
     console.error('Environment validation failed:', error);
+    console.warn('⚠️  App will continue to load but some features may not work.');
   }
 }

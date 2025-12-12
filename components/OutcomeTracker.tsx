@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
 
@@ -32,20 +32,7 @@ const OutcomeTracker: React.FC<OutcomeTrackerProps> = ({ hustleName, generatedDa
     feedback: '',
   });
 
-  useEffect(() => {
-    // Check if we should show prompt based on time elapsed
-    const daysSinceGeneration = Math.floor(
-      (new Date().getTime() - new Date(generatedDate).getTime()) / (1000 * 60 * 60 * 24)
-    );
-
-    // Show prompts at Day 7, Day 30, Day 60
-    if (daysSinceGeneration === 7 || daysSinceGeneration === 30 || daysSinceGeneration === 60) {
-      // Check if user already responded for this hustle
-      checkExistingResponse();
-    }
-  }, [generatedDate, hustleName]);
-
-  const checkExistingResponse = async () => {
+  const checkExistingResponse = React.useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -64,7 +51,20 @@ const OutcomeTracker: React.FC<OutcomeTrackerProps> = ({ hustleName, generatedDa
     } catch (error) {
       logger.error('Error checking outcome response:', error);
     }
-  };
+  }, [hustleName]);
+
+  useEffect(() => {
+    // Check if we should show prompt based on time elapsed
+    const daysSinceGeneration = Math.floor(
+      (new Date().getTime() - new Date(generatedDate).getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    // Show prompts at Day 7, Day 30, Day 60
+    if (daysSinceGeneration === 7 || daysSinceGeneration === 30 || daysSinceGeneration === 60) {
+      // Check if user already responded for this hustle
+      checkExistingResponse();
+    }
+  }, [generatedDate, hustleName, checkExistingResponse]);
 
   const handleSubmit = async () => {
     try {

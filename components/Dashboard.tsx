@@ -80,6 +80,11 @@ const MyHustles: React.FC = () => {
             if (saved) {
                 try {
                     const savedArray = JSON.parse(saved);
+                    // Validate savedArray is an array
+                    if (!Array.isArray(savedArray)) {
+                        logger.error('Saved hustles is not an array:', savedArray);
+                        return;
+                    }
                     // Convert names to basic hustle objects
                     const basicHustles = savedArray.map((name: string) => ({
                         hustleName: name,
@@ -139,7 +144,7 @@ const MyHustles: React.FC = () => {
                         >
                             <div className="flex-1 pointer-events-none">
                                 <h3 className="text-xl font-bold text-light-text">{hustle.hustleName}</h3>
-                                <p className="text-medium-text mt-2">{hustle.description.substring(0, 100)}...</p>
+                                <p className="text-medium-text mt-2">{(hustle.description || '').substring(0, 100)}{hustle.description && hustle.description.length > 100 ? '...' : ''}</p>
                                 <p className="text-sm text-brand-orange mt-2">
                                     {expandedHustle === hustle.hustleName ? '▼ Click to hide details' : '▶ Click to view details'}
                                 </p>
@@ -734,8 +739,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToHome }) => 
           logger.error('Error verifying payment:', error);
         } finally {
           setIsVerifyingPayment(false);
-          // Clean up URL
-          window.history.replaceState({}, '', '/dashboard');
+          // Clean up URL - use current pathname to support non-root deployments
+          window.history.replaceState({}, '', `${window.location.pathname}#dashboard`);
         }
       }, 2000); // Wait 2 seconds for webhook to process
     }

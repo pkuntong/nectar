@@ -46,19 +46,9 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onError }) => {
         if (error) {
           // Check if this is a deleted account or invalid credentials
           if (error.message.includes('Invalid login credentials')) {
-            // Check if user exists in database but was deleted
-            const { data: profileData } = await supabase
-              .from('user_profiles')
-              .select('id')
-              .eq('id', email)
-              .single();
-
-            // If no profile found, account was likely deleted
-            if (!profileData) {
-              onError('This account has been deleted. Please create a new account to continue using Nectar Forge.');
-            } else {
-              onError('Invalid email or password. Please check your credentials and try again.');
-            }
+            // FIXED: Cannot query user_profiles by email since id is UUID and we don't have user ID yet
+            // Show generic error message for invalid credentials
+            onError('Invalid email or password. Please check your credentials and try again.');
           } else {
             throw error;
           }

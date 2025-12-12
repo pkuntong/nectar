@@ -30,13 +30,10 @@ if (!STRIPE_PRICES.free || !STRIPE_PRICES.entrepreneur) {
 
   console.error(errorMessage);
   
-  // In production, log but don't crash - pricing features will be disabled
-  if (import.meta.env.MODE === 'production') {
-    console.warn('Stripe pricing features will be disabled due to missing price IDs. Add them in Vercel environment variables.');
-  } else {
-    // In development, throw to catch issues early
-    throw new Error(errorMessage);
-  }
+  // Don't throw - let the app render with warnings
+  // Pricing features will be disabled but the app can still load
+  console.warn('⚠️  Stripe pricing features will be disabled due to missing price IDs.');
+  console.warn('⚠️  Add them to your .env file to enable pricing features.');
 }
 
 export const createCheckoutSession = async (priceId: string) => {

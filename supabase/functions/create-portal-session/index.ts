@@ -9,24 +9,29 @@ const isDev = Deno.env.get('ENVIRONMENT') !== 'production';
 const log = (...args: any[]) => isDev && console.log(...args);
 
 // CORS configuration - restrict to your production domain in production
-// During development, allows localhost. In production, only allows your domain.
+// During development, allows all localhost ports. In production, only allows your domain.
 const getAllowedOrigin = (requestOrigin: string | null): string => {
-  const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:5173', // Vite default port
+  const productionOrigins = [
     'https://getekqgyhwmbhyznamli.supabase.co', // Supabase project URL
-    // Add your production domain here when ready:
     'https://nectarforge.app',
     'https://www.nectarforge.app',
   ];
 
-  // If request origin is in allowed list, use it. Otherwise, use first allowed origin.
-  if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+  // Allow all localhost origins (any port) for development
+  if (requestOrigin && (
+    requestOrigin.startsWith('http://localhost:') ||
+    requestOrigin.startsWith('http://127.0.0.1:')
+  )) {
     return requestOrigin;
   }
 
-  // Default to localhost for development
-  return allowedOrigins[0];
+  // Check production origins
+  if (requestOrigin && productionOrigins.includes(requestOrigin)) {
+    return requestOrigin;
+  }
+
+  // Default to localhost:3000 for development
+  return 'http://localhost:3000';
 };
 
 const getCorsHeaders = (requestOrigin: string | null) => ({

@@ -21,6 +21,7 @@ import Login from './components/auth/Login';
 import { supabase } from './lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import * as Sentry from '@sentry/react';
+import { logger } from './lib/logger';
 
 // Mock info components for modals
 const InfoContent: React.FC<{ type: string }> = ({ type }) => {
@@ -48,9 +49,12 @@ function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [showDashboard, setShowDashboard] = useState(true); // Track if we should show dashboard or homepage
   const [error, setError] = useState<string | null>(null);
+  const oAuthProcessingRef = React.useRef(false); // Prevent OAuth race conditions
 
   // Check auth state on mount
   useEffect(() => {
+    const timeoutIds: NodeJS.Timeout[] = []; // Track timeouts for cleanup at useEffect level
+    
     // Handle OAuth callback - Supabase automatically processes tokens in URL hash
     const handleOAuthCallback = async () => {
       // Check if URL has OAuth tokens (Supabase adds them to hash)
@@ -60,7 +64,8 @@ function App() {
                             hash.includes('error=') ||
                             hash.includes('code=');
       
-      if (hasOAuthTokens) {
+      if (hasOAuthTokens && !oAuthProcessingRef.current) {
+        oAuthProcessingRef.current = true; // Prevent duplicate processing
         console.log('OAuth callback detected, waiting for Supabase to process...');
         // Supabase client will automatically process these tokens
         // Check session multiple times with increasing delays to ensure we catch it
@@ -69,7 +74,10 @@ function App() {
           if (error) {
             console.error('Error getting session after OAuth:', error);
             if (attempt < 3) {
-              setTimeout(() => checkSession(attempt + 1), 500);
+              const timeoutId = setTimeout(() => checkSession(attempt + 1), 500);
+              timeoutIds.push(timeoutId);
+            } else {
+              oAuthProcessingRef.current = false; // Reset on failure
             }
             return;
           }
@@ -81,13 +89,20 @@ function App() {
             setActiveModal(null);
             // Clean up URL - remove OAuth tokens from hash
             window.history.replaceState(null, '', window.location.pathname + '#dashboard');
+            oAuthProcessingRef.current = false; // Reset after success
+            // Clear all pending timeouts
+            timeoutIds.forEach(id => clearTimeout(id));
           } else if (attempt < 5) {
             // Keep checking for up to 2.5 seconds
-            setTimeout(() => checkSession(attempt + 1), 500);
+            const timeoutId = setTimeout(() => checkSession(attempt + 1), 500);
+            timeoutIds.push(timeoutId);
+          } else {
+            oAuthProcessingRef.current = false; // Reset if no session found after max attempts
           }
         };
         // Start checking after a brief delay
-        setTimeout(() => checkSession(), 300);
+        const initialTimeoutId = setTimeout(() => checkSession(), 300);
+        timeoutIds.push(initialTimeoutId);
       }
     };
 
@@ -97,6 +112,8 @@ function App() {
       if (session?.user) {
         setShowDashboard(true);
       }
+    }).catch((error) => {
+      logger.error('Error getting session on mount:', error);
     });
 
     // Handle OAuth callback
@@ -112,17 +129,23 @@ function App() {
         setShowDashboard(true);
         setCurrentPage('home');
         setActiveModal(null);
-        // Update URL to dashboard if we have OAuth tokens
-        const hash = window.location.hash;
-        if (hash.includes('access_token') || hash.includes('type=recovery')) {
-          window.history.replaceState(null, '', window.location.pathname + '#dashboard');
+        // Update URL to dashboard if we have OAuth tokens (but only if not already processing)
+        if (!oAuthProcessingRef.current) {
+          const hash = window.location.hash;
+          if (hash.includes('access_token') || hash.includes('type=recovery')) {
+            window.history.replaceState(null, '', window.location.pathname + '#dashboard');
+          }
         }
       } else {
         setShowDashboard(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      // Clean up all pending timeouts
+      timeoutIds.forEach(id => clearTimeout(id));
+    };
   }, []);
 
   // Handle URL hash routing

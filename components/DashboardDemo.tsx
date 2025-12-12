@@ -51,6 +51,11 @@ const DashboardDemo: React.FC<DashboardDemoProps> = ({ onSignUpClick, onPricingC
     if (saved) {
       try {
         const savedArray = JSON.parse(saved);
+        // Validate savedArray is an array
+        if (!Array.isArray(savedArray)) {
+          logger.error('Saved hustles is not an array:', savedArray);
+          return;
+        }
         setSavedHustles(new Set(savedArray));
       } catch (e) {
         logger.error('Error loading saved hustles:', e);
@@ -60,6 +65,8 @@ const DashboardDemo: React.FC<DashboardDemoProps> = ({ onSignUpClick, onPricingC
     // Get current user
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user);
+    }).catch((error) => {
+      logger.error('Error getting user in DashboardDemo:', error);
     });
   }, []);
 
@@ -294,13 +301,23 @@ Example format:
 
           // Parse Groq response - it might return JSON wrapped in markdown code blocks
           let jsonText = groqResponse.trim();
+          if (!jsonText) {
+            throw new Error('Empty response from Groq API');
+          }
+          
           if (jsonText.startsWith('```json')) {
             jsonText = jsonText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
           } else if (jsonText.startsWith('```')) {
             jsonText = jsonText.replace(/^```\s*/, '').replace(/\s*```$/, '');
           }
 
-          const parsed = JSON.parse(jsonText);
+          let parsed;
+          try {
+            parsed = JSON.parse(jsonText);
+          } catch (parseError) {
+            throw new Error(`Invalid JSON response from Groq: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+          }
+          
           // Handle both direct array and wrapped in object
           if (Array.isArray(parsed)) {
             generatedHustles = parsed;
@@ -357,8 +374,45 @@ Example format:
           },
         });
 
-        const resultText = response.text.trim();
-        generatedHustles = JSON.parse(resultText);
+        // Handle different response formats from Google GenAI
+        // The @google/genai SDK returns response with text property or method
+        let resultText: string;
+        try {
+          // The response object from @google/genai has a .text property that returns a string
+          // It might be a getter, so we need to access it directly
+          const responseAny = response as any;
+          
+          if (responseAny?.text !== undefined) {
+            // text is a property (getter or direct)
+            const textValue = responseAny.text;
+            resultText = typeof textValue === 'function' ? textValue().trim() : String(textValue).trim();
+          } else if (responseAny?.response?.text !== undefined) {
+            // Try nested response.text
+            const textValue = responseAny.response.text;
+            resultText = typeof textValue === 'function' ? textValue().trim() : String(textValue).trim();
+          } else if (typeof response === 'string') {
+            resultText = response.trim();
+          } else {
+            throw new Error('Unexpected response format from Gemini API - could not extract text. Response structure: ' + JSON.stringify(response).substring(0, 200));
+          }
+        } catch (extractError) {
+          throw new Error(`Failed to extract text from Gemini response: ${extractError instanceof Error ? extractError.message : 'Unknown error'}`);
+        }
+        
+        if (!resultText) {
+          throw new Error('Empty response from Gemini API');
+        }
+
+        try {
+          generatedHustles = JSON.parse(resultText);
+        } catch (parseError) {
+          throw new Error(`Invalid JSON response from Gemini: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+        }
+        
+        // Validate the parsed result is an array
+        if (!Array.isArray(generatedHustles)) {
+          throw new Error('Gemini API returned non-array response');
+        }
       }
 
       setResults(generatedHustles);
