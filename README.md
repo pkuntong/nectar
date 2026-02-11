@@ -30,6 +30,11 @@ npx convex env set STRIPE_SECRET_KEY sk_test_or_sk_live_... --deployment-name qu
 npx convex env set STRIPE_WEBHOOK_SECRET whsec_... --deployment-name quaint-lion-604
 npx convex env set GROQ_API_KEY gsk_... --deployment-name quaint-lion-604
 npx convex env set GEMINI_API_KEY your_gemini_key --deployment-name quaint-lion-604
+npx convex env set SMTP_HOST mail.privateemail.com --deployment-name quaint-lion-604
+npx convex env set SMTP_PORT 465 --deployment-name quaint-lion-604
+npx convex env set SMTP_USER noreply@nectarforge.app --deployment-name quaint-lion-604
+npx convex env set SMTP_PASS your_private_email_password --deployment-name quaint-lion-604
+npx convex env set SMTP_FROM_EMAIL noreply@nectarforge.app --deployment-name quaint-lion-604
 ```
 
 ### 4. Generate Convex code + deploy functions
@@ -55,6 +60,11 @@ Stripe webhook URL:
 ## Auth
 - Email/password auth is implemented with Convex-backed session tokens.
 - Google OAuth UI entry exists, but OAuth provider integration is currently disabled in Convex mode.
+
+## Signup Emails (Namecheap SMTP)
+- The backend sends emails via SMTP first (Namecheap Private Email), then falls back to Resend if configured.
+- Use `SMTP_USER`/`SMTP_PASS` from your Namecheap mailbox and set `SMTP_FROM_EMAIL` to the sender address.
+- Users will see the `From` address you configure (for example `noreply@nectarforge.app`), not your personal inbox.
 
 ## Build
 ```bash

@@ -1090,7 +1090,7 @@ router.route({
 router.route({
   path: '/api/send-email',
   method: 'POST',
-  handler: httpAction(async (_, req) => {
+  handler: httpAction(async (ctx, req) => {
     const corsHeaders = getCorsHeaders(req.headers.get('origin'));
     try {
       const body = (await req.json()) as {
@@ -1099,21 +1099,6 @@ router.route({
         html?: string;
         type?: string;
       };
-
-      const resendKey = process.env.RESEND_API_KEY;
-      if (!resendKey) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            skipped: true,
-            error: 'Email provider is not configured (missing RESEND_API_KEY).',
-          }),
-          {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
-        );
-      }
 
       const to = body.to?.trim();
       const subject = body.subject?.trim() || 'Welcome to Nectar Forge';
@@ -1126,6 +1111,36 @@ router.route({
 
       const defaultHtml = `<p>Welcome to Nectar Forge!</p><p>Your account is ready.</p>`;
       const emailHtml = body.html || defaultHtml;
+
+      const smtpResult = await ctx.runAction(api.emailNode.sendEmail, {
+        to,
+        subject,
+        html: emailHtml,
+      });
+
+      if (smtpResult?.success) {
+        return new Response(JSON.stringify({ success: true, provider: 'smtp' }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const resendKey = process.env.RESEND_API_KEY;
+      if (!resendKey) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            skipped: true,
+            error:
+              smtpResult?.error ||
+              'Email provider is not configured (configure SMTP or set RESEND_API_KEY).',
+          }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
 
       const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
       const response = await fetch('https://api.resend.com/emails', {
@@ -1147,7 +1162,7 @@ router.route({
         throw new Error(`Resend API error: ${text}`);
       }
 
-      return new Response(JSON.stringify({ success: true }), {
+      return new Response(JSON.stringify({ success: true, provider: 'resend' }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

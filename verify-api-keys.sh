@@ -63,6 +63,18 @@ if env_output=$(npx convex env list --deployment-name "$deployment" 2>/dev/null)
   check_convex_secret "STRIPE_WEBHOOK_SECRET"
   check_convex_secret "GROQ_API_KEY"
   check_convex_secret "GEMINI_API_KEY"
+  check_convex_secret "SMTP_HOST"
+  check_convex_secret "SMTP_PORT"
+  check_convex_secret "SMTP_FROM_EMAIL"
+
+  if echo "$env_output" | grep -q "^SMTP_USER=" && echo "$env_output" | grep -q "^SMTP_PASS="; then
+    echo "✅ SMTP_USER and SMTP_PASS are set in Convex ($deployment)"
+  elif echo "$env_output" | grep -q "^RESEND_API_KEY="; then
+    echo "⚠️  SMTP credentials missing; falling back to RESEND_API_KEY"
+  else
+    echo "❌ ERROR: Missing SMTP_USER/SMTP_PASS (or RESEND_API_KEY fallback)"
+    total_errors=$((total_errors + 1))
+  fi
 else
   echo "❌ ERROR: Could not read Convex env for deployment $deployment"
   total_errors=$((total_errors + 1))

@@ -9,6 +9,7 @@
  */
 
 import type * as appData from "../appData.js";
+import type * as emailNode from "../emailNode.js";
 import type * as http from "../http.js";
 
 import type {
@@ -19,6 +20,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   appData: typeof appData;
+  emailNode: typeof emailNode;
   http: typeof http;
 }>;
 
