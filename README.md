@@ -50,7 +50,16 @@ VITE_STRIPE_PRICE_ENTREPRENEUR=price_xxx
 VITE_CONVEX_GENERATE_HUSTLES_URL=https://your-deployment.convex.site/api/generate-hustles
 VITE_GROQ_API_KEY=your_groq_key
 GEMINI_API_KEY=your_gemini_key
+VITE_GEMINI_API_KEY=your_gemini_key
 VITE_SENTRY_DSN=your_sentry_dsn
+```
+
+Convex backend secrets used by HTTP actions are configured via CLI:
+
+```bash
+npx convex env set STRIPE_SECRET_KEY sk_live_or_sk_test_...
+npx convex env set GROQ_API_KEY gsk_...
+npx convex env set GEMINI_API_KEY your_gemini_key
 ```
 
 ### Database Setup

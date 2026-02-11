@@ -12,6 +12,16 @@ type Hustle = {
   learnMoreLink: string;
 };
 
+type StripeCheckoutSession = {
+  id: string;
+  url: string;
+};
+
+type StripePortalSession = {
+  id: string;
+  url: string;
+};
+
 const router = httpRouter();
 
 const getCorsHeaders = (origin: string | null) => ({
@@ -102,8 +112,11 @@ const normalizeHustles = (raw: unknown): Hustle[] => {
   return hustles;
 };
 
-const generateWithGroq = async (prompt: string): Promise<Hustle[] | null> => {
-  const apiKey = process.env.GROQ_API_KEY;
+const generateWithGroq = async (
+  prompt: string,
+  overrideApiKey?: string
+): Promise<Hustle[] | null> => {
+  const apiKey = overrideApiKey || process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
   if (!apiKey) {
     return null;
   }
@@ -142,8 +155,12 @@ const generateWithGroq = async (prompt: string): Promise<Hustle[] | null> => {
   return normalizeHustles(parseJsonText(text));
 };
 
-const generateWithGemini = async (prompt: string): Promise<Hustle[] | null> => {
-  const apiKey = process.env.GEMINI_API_KEY;
+const generateWithGemini = async (
+  prompt: string,
+  overrideApiKey?: string
+): Promise<Hustle[] | null> => {
+  const apiKey =
+    overrideApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.API_KEY;
   if (!apiKey) {
     return null;
   }
@@ -215,6 +232,102 @@ const fallbackHustles = (interest: string, budget: string, time: string): Hustle
   },
 ];
 
+const getStripeSecretKey = (): string => {
+  const secretKey = process.env.STRIPE_SECRET_KEY || process.env.VITE_STRIPE_SECRET_KEY;
+  if (!secretKey) {
+    throw new Error('STRIPE_SECRET_KEY is not configured in Convex env.');
+  }
+  return secretKey;
+};
+
+const appendFormValue = (form: URLSearchParams, key: string, value: unknown) => {
+  if (value === undefined || value === null) {
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => appendFormValue(form, `${key}[${index}]`, item));
+    return;
+  }
+
+  if (typeof value === 'object') {
+    Object.entries(value).forEach(([nestedKey, nestedValue]) => {
+      appendFormValue(form, `${key}[${nestedKey}]`, nestedValue);
+    });
+    return;
+  }
+
+  form.append(key, String(value));
+};
+
+const stripeApiRequest = async <T>({
+  method,
+  path,
+  params,
+}: {
+  method: 'GET' | 'POST';
+  path: string;
+  params?: Record<string, unknown>;
+}): Promise<T> => {
+  const secretKey = getStripeSecretKey();
+  const url = new URL(`https://api.stripe.com${path}`);
+
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${secretKey}`,
+  };
+
+  let body: string | undefined;
+  if (params) {
+    const form = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => appendFormValue(form, key, value));
+    if (method === 'GET') {
+      form.forEach((value, key) => url.searchParams.append(key, value));
+    } else {
+      headers['Content-Type'] = 'application/x-www-form-urlencoded';
+      body = form.toString();
+    }
+  }
+
+  const response = await fetch(url.toString(), {
+    method,
+    headers,
+    body,
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    const message =
+      isObject(data) &&
+      isObject(data.error) &&
+      typeof data.error.message === 'string'
+        ? data.error.message
+        : `Stripe request failed (${response.status})`;
+    throw new Error(message);
+  }
+
+  return data as T;
+};
+
+const findStripeCustomerIdByEmail = async (email?: string): Promise<string | null> => {
+  if (!email) {
+    return null;
+  }
+
+  const customers = await stripeApiRequest<{
+    data?: Array<{ id?: string }>;
+  }>({
+    method: 'GET',
+    path: '/v1/customers',
+    params: {
+      email,
+      limit: 1,
+    },
+  });
+
+  const id = customers.data?.[0]?.id;
+  return typeof id === 'string' ? id : null;
+};
+
 router.route({
   path: '/api/generate-hustles',
   method: 'POST',
@@ -230,6 +343,8 @@ router.route({
         interest?: string;
         budget?: string;
         time?: string;
+        groqApiKey?: string;
+        geminiApiKey?: string;
       };
 
       const interest = body.interest?.trim();
@@ -244,17 +359,19 @@ router.route({
       }
 
       const prompt = getPrompt(interest, budget, time);
+      const groqApiKey = body.groqApiKey?.trim();
+      const geminiApiKey = body.geminiApiKey?.trim();
 
       let hustles: Hustle[] | null = null;
       try {
-        hustles = await generateWithGroq(prompt);
+        hustles = await generateWithGroq(prompt, groqApiKey);
       } catch (error) {
         console.error('Groq generation failed:', error);
       }
 
       if (!hustles) {
         try {
-          hustles = await generateWithGemini(prompt);
+          hustles = await generateWithGemini(prompt, geminiApiKey);
         } catch (error) {
           console.error('Gemini generation failed:', error);
         }
@@ -275,6 +392,141 @@ router.route({
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+  }),
+});
+
+router.route({
+  path: '/api/generate-hustles',
+  method: 'OPTIONS',
+  handler: httpAction(async (_, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    return new Response('ok', { headers: corsHeaders });
+  }),
+});
+
+router.route({
+  path: '/api/create-checkout-session',
+  method: 'POST',
+  handler: httpAction(async (_, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    try {
+      const body = (await req.json()) as {
+        priceId?: string;
+        email?: string;
+        successUrl?: string;
+        cancelUrl?: string;
+      };
+
+      const priceId = body.priceId?.trim();
+      if (!priceId) {
+        return new Response(JSON.stringify({ error: 'Missing required field: priceId' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const origin = req.headers.get('origin') ?? 'https://quaint-lion-604.convex.site';
+      const successUrl = body.successUrl?.trim() || `${origin}/dashboard?success=true`;
+      const cancelUrl = body.cancelUrl?.trim() || `${origin}/pricing?canceled=true`;
+      const email = body.email?.trim();
+      const customerId = await findStripeCustomerIdByEmail(email);
+
+      const session = await stripeApiRequest<StripeCheckoutSession>({
+        method: 'POST',
+        path: '/v1/checkout/sessions',
+        params: {
+          mode: 'subscription',
+          success_url: successUrl,
+          cancel_url: cancelUrl,
+          allow_promotion_codes: true,
+          line_items: [{ price: priceId, quantity: 1 }],
+          ...(customerId ? { customer: customerId } : {}),
+          ...(!customerId && email ? { customer_email: email } : {}),
+        },
+      });
+
+      return new Response(
+        JSON.stringify({
+          sessionId: session.id,
+          url: session.url,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unexpected error';
+      return new Response(JSON.stringify({ error: message }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  }),
+});
+
+router.route({
+  path: '/api/create-checkout-session',
+  method: 'OPTIONS',
+  handler: httpAction(async (_, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    return new Response('ok', { headers: corsHeaders });
+  }),
+});
+
+router.route({
+  path: '/api/create-portal-session',
+  method: 'POST',
+  handler: httpAction(async (_, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    try {
+      const body = (await req.json()) as {
+        email?: string;
+        customerId?: string;
+        returnUrl?: string;
+      };
+
+      const origin = req.headers.get('origin') ?? 'https://quaint-lion-604.convex.site';
+      const returnUrl = body.returnUrl?.trim() || `${origin}/dashboard?tab=settings`;
+      const customerId =
+        body.customerId?.trim() || (await findStripeCustomerIdByEmail(body.email?.trim()));
+
+      if (!customerId) {
+        return new Response(JSON.stringify({ error: 'No Stripe customer found for this user.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const session = await stripeApiRequest<StripePortalSession>({
+        method: 'POST',
+        path: '/v1/billing_portal/sessions',
+        params: {
+          customer: customerId,
+          return_url: returnUrl,
+        },
+      });
+
+      return new Response(JSON.stringify({ url: session.url }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unexpected error';
+      return new Response(JSON.stringify({ error: message }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  }),
+});
+
+router.route({
+  path: '/api/create-portal-session',
+  method: 'OPTIONS',
+  handler: httpAction(async (_, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    return new Response('ok', { headers: corsHeaders });
   }),
 });
 

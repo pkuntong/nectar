@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { createCheckoutSession, STRIPE_PRICES } from '../lib/stripe';
-import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
 
 interface PlanCardProps {
@@ -54,63 +53,9 @@ const Pricing: React.FC = () => {
     setError(null);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      logger.log('Current user:', user?.id);
-
-      if (!user) {
-        const errorMsg = 'Please sign up or log in to continue.';
-        setError(errorMsg);
-        alert(errorMsg);
-        setLoading(false);
-        return;
-      }
-
       if (isFree) {
-        // Check if user has an active paid subscription
-        logger.log('Checking subscription status for user:', user.id);
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('subscription_tier')
-          .eq('id', user.id)
-          .single();
-
-        if (profile?.subscription_tier === 'entrepreneur') {
-          // User has active paid subscription - redirect to Settings to manage via Stripe
-          alert('You currently have an active Entrepreneur subscription. To downgrade to Free, please manage your subscription in Settings. You\'ll keep Entrepreneur access until the end of your billing period.');
-          setLoading(false);
-          return;
-        }
-
-        // User is already on free or no subscription - activate free plan
-        logger.log('Activating free plan for user:', user.id);
-        const { error: updateError } = await supabase
-          .from('user_profiles')
-          .update({ subscription_tier: 'free' })
-          .eq('id', user.id);
-
-        if (updateError) {
-          logger.error('Error updating free plan:', updateError);
-          throw new Error(`Failed to activate free plan: ${updateError.message}`);
-        }
-
-        alert('Free plan activated! You now have access to basic features.');
+        alert('You are already on the free Hustler plan.');
       } else {
-        // Check if user already has Entrepreneur plan
-        logger.log('Checking if user already has Entrepreneur plan...');
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('subscription_tier')
-          .eq('id', user.id)
-          .single();
-
-        if (profile?.subscription_tier === 'entrepreneur') {
-          // User already has Entrepreneur plan
-          alert('You already have an active Entrepreneur subscription! To manage your subscription, go to Settings → Subscription & Billing.');
-          setLoading(false);
-          return;
-        }
-
-        // Handle paid plan - redirect to Stripe checkout
         logger.log('Creating checkout session for paid plan...');
         const priceId = STRIPE_PRICES.entrepreneur;
         logger.log('Using Price ID:', priceId);
@@ -127,8 +72,6 @@ const Pricing: React.FC = () => {
         if (result.url) {
           logger.log('Redirecting to:', result.url);
           window.location.href = result.url;
-        } else {
-          throw new Error('No checkout URL returned. Please ensure Edge Functions are deployed.');
         }
       }
     } catch (error: any) {

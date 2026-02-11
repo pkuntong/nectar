@@ -141,28 +141,17 @@ Learn More: ${hustle.learnMoreLink}
   };
 
   const handleDirectUpgrade = async () => {
-    // Check if user is logged in
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-
-    if (!currentUser) {
-      // User not logged in, show sign up modal
-      onSignUpClick();
-      return;
-    }
-
     // Start checkout process
     setIsLoading(true);
     try {
       const priceId = STRIPE_PRICES.entrepreneur;
-      const result = await createCheckoutSession(priceId);
+      const result = await createCheckoutSession(priceId, { email: user?.email });
 
       if (result.error) {
         alert(`Error: ${result.error}`);
       } else if (result.url) {
         // Redirect to Stripe checkout
         window.location.href = result.url;
-      } else {
-        alert('Error: Could not create checkout session. Please try again.');
       }
     } catch (error: any) {
       alert(`Error: ${error.message || 'Failed to start checkout'}`);

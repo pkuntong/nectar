@@ -1,8 +1,8 @@
 import { loadStripe } from '@stripe/stripe-js';
-import { supabase } from './supabase';
 import { logger } from './logger';
 
-const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || process.env.VITE_STRIPE_PUBLISHABLE_KEY;
+const stripePublishableKey =
+  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || process.env.VITE_STRIPE_PUBLISHABLE_KEY;
 
 if (!stripePublishableKey) {
   console.warn('Stripe publishable key not found');
@@ -10,122 +10,159 @@ if (!stripePublishableKey) {
 
 export const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
 
-// ✅ Price IDs from environment variables
-// Update these in .env file when switching to Stripe LIVE mode
 export const STRIPE_PRICES = {
   free: import.meta.env.VITE_STRIPE_PRICE_FREE || process.env.VITE_STRIPE_PRICE_FREE,
-  entrepreneur: import.meta.env.VITE_STRIPE_PRICE_ENTREPRENEUR || process.env.VITE_STRIPE_PRICE_ENTREPRENEUR
+  entrepreneur:
+    import.meta.env.VITE_STRIPE_PRICE_ENTREPRENEUR || process.env.VITE_STRIPE_PRICE_ENTREPRENEUR,
 };
 
-// Validate price IDs are set - warn if missing but don't crash in production
 if (!STRIPE_PRICES.free || !STRIPE_PRICES.entrepreneur) {
   const missing = [];
   if (!STRIPE_PRICES.free) missing.push('VITE_STRIPE_PRICE_FREE');
   if (!STRIPE_PRICES.entrepreneur) missing.push('VITE_STRIPE_PRICE_ENTREPRENEUR');
-
-  const errorMessage = `❌ Missing required Stripe price IDs in environment:\n${missing.join(', ')}\n\n` +
-    'Add these to your .env file:\n' +
-    'VITE_STRIPE_PRICE_FREE=price_...\n' +
-    'VITE_STRIPE_PRICE_ENTREPRENEUR=price_...';
-
-  console.error(errorMessage);
-  
-  // Don't throw - let the app render with warnings
-  // Pricing features will be disabled but the app can still load
-  console.warn('⚠️  Stripe pricing features will be disabled due to missing price IDs.');
-  console.warn('⚠️  Add them to your .env file to enable pricing features.');
+  console.warn(`Stripe price IDs missing: ${missing.join(', ')}`);
 }
 
-export const createCheckoutSession = async (priceId: string) => {
-  // Check if Stripe is properly configured
-  if (!stripePublishableKey || !STRIPE_PRICES.free || !STRIPE_PRICES.entrepreneur) {
-    const missing = [];
-    if (!stripePublishableKey) missing.push('VITE_STRIPE_PUBLISHABLE_KEY');
-    if (!STRIPE_PRICES.free) missing.push('VITE_STRIPE_PRICE_FREE');
-    if (!STRIPE_PRICES.entrepreneur) missing.push('VITE_STRIPE_PRICE_ENTREPRENEUR');
+const getConvexSiteUrl = (): string => {
+  const processEnvSiteUrl =
+    typeof process !== 'undefined' && process.env ? process.env.VITE_CONVEX_SITE_URL : undefined;
+  const processEnvGenerateUrl =
+    typeof process !== 'undefined' && process.env ? process.env.VITE_CONVEX_GENERATE_HUSTLES_URL : undefined;
 
-    const error = `Stripe configuration error: Missing ${missing.join(', ')}. ` +
-      `If on Vercel: 1) Add these env vars in Settings → Environment Variables. ` +
-      `2) Check "Production" checkbox for each. 3) Redeploy. See VERCEL_STRIPE_FIX.md for help.`;
+  const base =
+    import.meta.env.VITE_CONVEX_SITE_URL ||
+    processEnvSiteUrl ||
+    import.meta.env.VITE_CONVEX_GENERATE_HUSTLES_URL ||
+    processEnvGenerateUrl ||
+    'https://quaint-lion-604.convex.site/api/generate-hustles';
 
-    logger.error(error);
-    console.error('🔴 Stripe Config Check:', {
-      publishableKey: stripePublishableKey ? `${stripePublishableKey.substring(0, 15)}...` : 'MISSING',
-      freePrice: STRIPE_PRICES.free || 'MISSING',
-      entrepreneurPrice: STRIPE_PRICES.entrepreneur || 'MISSING',
-      missingVars: missing
+  // Supports either VITE_CONVEX_SITE_URL or VITE_CONVEX_GENERATE_HUSTLES_URL style env.
+  if (base.endsWith('/api/generate-hustles')) {
+    return base.replace(/\/api\/generate-hustles$/, '');
+  }
+  return base.replace(/\/$/, '');
+};
+
+const callConvexStripeApi = async <T>(path: string, body: Record<string, unknown>): Promise<T> => {
+  const url = `${getConvexSiteUrl()}${path}`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    const message =
+      data && typeof data === 'object' && 'error' in data && typeof data.error === 'string'
+        ? data.error
+        : `Stripe API call failed (${response.status})`;
+    throw new Error(message);
+  }
+
+  return data as T;
+};
+
+const tryClientSideCheckoutRedirect = async (priceId: string): Promise<string | null> => {
+  try {
+    const stripe = await stripePromise;
+    if (!stripe) {
+      return 'Stripe publishable key is missing.';
+    }
+
+    const result = await stripe.redirectToCheckout({
+      lineItems: [{ price: priceId, quantity: 1 }],
+      mode: 'subscription',
+      successUrl: `${window.location.origin}/dashboard?success=true`,
+      cancelUrl: `${window.location.origin}/pricing?canceled=true`,
     });
 
+    if (result.error) {
+      return result.error.message || 'Stripe redirect failed.';
+    }
+
+    // If redirect succeeds, the page navigates away.
+    return null;
+  } catch (error: any) {
+    return error?.message || 'Stripe redirect failed.';
+  }
+};
+
+export const createCheckoutSession = async (
+  priceId: string,
+  options?: { email?: string }
+): Promise<{ sessionId: string | null; url: string | null; error: string | null }> => {
+  if (!priceId) {
     return {
       sessionId: null,
       url: null,
-      error: error
+      error: 'Missing Stripe price ID for checkout.',
     };
   }
 
   try {
-    logger.log('createCheckoutSession called with priceId:', priceId);
-
-    // Get the current user's session token
-    const { data: { session } } = await supabase.auth.getSession();
-    logger.log('User session:', session?.user?.id);
-
-    if (!session) {
-      throw new Error('User not authenticated');
-    }
-
-    logger.log('Invoking create-checkout-session Edge Function...');
-
-    // Get Supabase URL for function endpoint
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-
-    // Make direct fetch call to get actual error response body
-    const functionUrl = `${supabaseUrl}/functions/v1/create-checkout-session`;
-    const response = await fetch(functionUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
-      },
-      body: JSON.stringify({
+    const data = await callConvexStripeApi<{ sessionId?: string; url?: string }>(
+      '/api/create-checkout-session',
+      {
         priceId,
+        email: options?.email ?? null,
         successUrl: `${window.location.origin}/dashboard?success=true`,
         cancelUrl: `${window.location.origin}/pricing?canceled=true`,
-      }),
-    });
+      }
+    );
 
-    const responseData = await response.json();
-    logger.log('Edge Function response:', { status: response.status, data: responseData });
-
-    if (!response.ok) {
-      // Extract actual error message from response body
-      const errorMessage = responseData?.error || responseData?.message || `HTTP ${response.status}: ${response.statusText}`;
-      logger.error('Edge Function error:', errorMessage);
-      throw new Error(errorMessage);
-    }
-
-    // Check if response contains error field (shouldn't happen if response.ok, but just in case)
-    if (responseData.error) {
-      logger.error('Edge Function returned error in data:', responseData.error);
-      throw new Error(responseData.error);
-    }
-
-    if (!responseData.url) {
-      throw new Error('No checkout URL returned from Edge Function. Check function logs for details.');
+    if (!data.url) {
+      throw new Error('No checkout URL returned from Stripe.');
     }
 
     return {
-      sessionId: responseData.sessionId,
-      url: responseData.url,
-      error: null
+      sessionId: data.sessionId ?? null,
+      url: data.url,
+      error: null,
     };
   } catch (error: any) {
     logger.error('Error creating checkout session:', error);
+    const fallbackError = await tryClientSideCheckoutRedirect(priceId);
+    if (!fallbackError) {
+      return {
+        sessionId: null,
+        url: null,
+        error: null,
+      };
+    }
     return {
       sessionId: null,
       url: null,
-      error: error.message || 'Failed to create checkout session. Please ensure Edge Functions are deployed to Supabase.'
+      error: error?.message || fallbackError || 'Failed to create checkout session.',
+    };
+  }
+};
+
+export const createPortalSession = async (
+  options?: { email?: string; returnUrl?: string }
+): Promise<{ url: string | null; error: string | null }> => {
+  try {
+    const data = await callConvexStripeApi<{ url?: string }>('/api/create-portal-session', {
+      email: options?.email ?? null,
+      returnUrl: options?.returnUrl ?? `${window.location.origin}/dashboard?tab=settings`,
+    });
+
+    if (!data.url) {
+      throw new Error('No billing portal URL returned from Stripe.');
+    }
+
+    return {
+      url: data.url,
+      error: null,
+    };
+  } catch (error: any) {
+    logger.error('Error creating portal session:', error);
+    return {
+      url: null,
+      error: error?.message || 'Failed to create billing portal session.',
     };
   }
 };
@@ -133,4 +170,3 @@ export const createCheckoutSession = async (priceId: string) => {
 export const redirectToCheckout = async (url: string) => {
   window.location.href = url;
 };
-

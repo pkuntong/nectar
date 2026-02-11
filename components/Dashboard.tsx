@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { createCheckoutSession, STRIPE_PRICES } from '../lib/stripe';
+import { createCheckoutSession, createPortalSession, STRIPE_PRICES } from '../lib/stripe';
 import Sidebar from './Sidebar';
 import DashboardHeader from './DashboardHeader';
 import DashboardDemo from './DashboardDemo';
@@ -353,15 +353,13 @@ const SettingsContent: React.FC<{ onProfileUpdate?: () => void }> = ({ onProfile
         setUpgrading(true);
         try {
             const priceId = STRIPE_PRICES.entrepreneur;
-            const result = await createCheckoutSession(priceId);
+            const result = await createCheckoutSession(priceId, { email: email || undefined });
 
             if (result.error) {
                 alert(`Error: ${result.error}`);
             } else if (result.url) {
                 // Redirect to Stripe checkout
                 window.location.href = result.url;
-            } else {
-                alert('Error: Could not create checkout session. Please try again.');
             }
         } catch (error: any) {
             alert(`Error: ${error.message || 'Failed to start checkout'}`);
@@ -373,37 +371,20 @@ const SettingsContent: React.FC<{ onProfileUpdate?: () => void }> = ({ onProfile
     const handleManageSubscription = async () => {
         setLoading(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                throw new Error('User not authenticated');
-            }
-
-            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-            const functionUrl = `${supabaseUrl}/functions/v1/create-portal-session`;
-
-            const response = await fetch(functionUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`,
-                    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
-                },
-                body: JSON.stringify({
-                    returnUrl: `${window.location.origin}/dashboard?tab=settings`,
-                }),
+            const result = await createPortalSession({
+                email: email || undefined,
+                returnUrl: `${window.location.origin}/dashboard?tab=settings`,
             });
 
-            const responseData = await response.json();
-
-            if (!response.ok) {
-                throw new Error(responseData.error || 'Failed to create portal session');
+            if (result.error) {
+                throw new Error(result.error);
             }
 
-            if (responseData.url) {
-                window.location.href = responseData.url;
-            } else {
+            if (!result.url) {
                 throw new Error('No portal URL returned');
             }
+
+            window.location.href = result.url;
         } catch (error: any) {
             alert(`Error: ${error.message || 'Failed to open subscription management. Please contact support.'}`);
         } finally {
