@@ -1102,10 +1102,17 @@ router.route({
 
       const resendKey = process.env.RESEND_API_KEY;
       if (!resendKey) {
-        return new Response(JSON.stringify({ success: true, skipped: true }), {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            skipped: true,
+            error: 'Email provider is not configured (missing RESEND_API_KEY).',
+          }),
+          {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+          }
+        );
       }
 
       const to = body.to?.trim();
@@ -1120,6 +1127,7 @@ router.route({
       const defaultHtml = `<p>Welcome to Nectar Forge!</p><p>Your account is ready.</p>`;
       const emailHtml = body.html || defaultHtml;
 
+      const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
       const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -1127,7 +1135,7 @@ router.route({
           Authorization: `Bearer ${resendKey}`,
         },
         body: JSON.stringify({
-          from: 'Nectar <onboarding@resend.dev>',
+          from: `Nectar <${fromEmail}>`,
           to: [to],
           subject,
           html: emailHtml,
