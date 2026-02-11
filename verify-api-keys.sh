@@ -60,6 +60,7 @@ if env_output=$(npx convex env list --deployment-name "$deployment" 2>/dev/null)
   }
 
   check_convex_secret "STRIPE_SECRET_KEY"
+  check_convex_secret "STRIPE_WEBHOOK_SECRET"
   check_convex_secret "GROQ_API_KEY"
   check_convex_secret "GEMINI_API_KEY"
 else

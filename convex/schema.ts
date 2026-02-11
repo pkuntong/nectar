@@ -7,6 +7,8 @@ export default defineSchema({
     passwordHash: v.string(),
     fullName: v.string(),
     subscriptionTier: v.string(),
+    stripeCustomerId: v.optional(v.string()),
+    stripeSubscriptionId: v.optional(v.string()),
     usageCount: v.number(),
     usageResetDate: v.number(),
     notificationPreferences: v.object({
@@ -16,7 +18,9 @@ export default defineSchema({
     }),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index('by_email', ['email']),
+  })
+    .index('by_email', ['email'])
+    .index('by_stripe_customer', ['stripeCustomerId']),
 
   sessions: defineTable({
     token: v.string(),

@@ -27,6 +27,7 @@ Use the deployment shown in `.env.local` or pass your own deployment name.
 Set backend secrets in Convex:
 ```bash
 npx convex env set STRIPE_SECRET_KEY sk_test_or_sk_live_... --deployment-name quaint-lion-604
+npx convex env set STRIPE_WEBHOOK_SECRET whsec_... --deployment-name quaint-lion-604
 npx convex env set GROQ_API_KEY gsk_... --deployment-name quaint-lion-604
 npx convex env set GEMINI_API_KEY your_gemini_key --deployment-name quaint-lion-604
 ```
@@ -46,6 +47,10 @@ npm run dev
 Implemented in Convex HTTP routes:
 - `POST /api/create-checkout-session`
 - `POST /api/create-portal-session`
+- `POST /api/stripe-webhook`
+
+Stripe webhook URL:
+- `https://quaint-lion-604.convex.site/api/stripe-webhook`
 
 ## Auth
 - Email/password auth is implemented with Convex-backed session tokens.

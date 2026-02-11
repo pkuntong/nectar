@@ -26,6 +26,16 @@ export const getUserById = query({
   },
 });
 
+export const getUserByStripeCustomer = query({
+  args: { stripeCustomerId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query('users')
+      .withIndex('by_stripe_customer', (q) => q.eq('stripeCustomerId', args.stripeCustomerId))
+      .first();
+  },
+});
+
 export const createUser = mutation({
   args: {
     email: v.string(),
@@ -65,6 +75,8 @@ export const updateUser = mutation({
     email: v.optional(v.string()),
     fullName: v.optional(v.string()),
     subscriptionTier: v.optional(v.string()),
+    stripeCustomerId: v.optional(v.string()),
+    stripeSubscriptionId: v.optional(v.string()),
     usageCount: v.optional(v.number()),
     usageResetDate: v.optional(v.number()),
     notificationPreferences: v.optional(
@@ -95,6 +107,10 @@ export const updateUser = mutation({
       ...(args.email !== undefined ? { email: args.email.toLowerCase().trim() } : {}),
       ...(args.fullName !== undefined ? { fullName: args.fullName.trim() } : {}),
       ...(args.subscriptionTier !== undefined ? { subscriptionTier: args.subscriptionTier } : {}),
+      ...(args.stripeCustomerId !== undefined ? { stripeCustomerId: args.stripeCustomerId } : {}),
+      ...(args.stripeSubscriptionId !== undefined
+        ? { stripeSubscriptionId: args.stripeSubscriptionId }
+        : {}),
       ...(args.usageCount !== undefined ? { usageCount: args.usageCount } : {}),
       ...(args.usageResetDate !== undefined ? { usageResetDate: args.usageResetDate } : {}),
       ...(args.notificationPreferences !== undefined

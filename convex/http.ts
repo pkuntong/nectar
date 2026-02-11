@@ -41,7 +41,7 @@ const router = httpRouter();
 
 const getCorsHeaders = (origin: string | null) => ({
   'Access-Control-Allow-Origin': origin ?? '*',
-  'Access-Control-Allow-Headers': 'content-type, authorization',
+  'Access-Control-Allow-Headers': 'content-type, authorization, stripe-signature',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 });
 
@@ -253,6 +253,119 @@ const getStripeSecretKey = (): string => {
     throw new Error('STRIPE_SECRET_KEY is not configured in Convex env.');
   }
   return secretKey;
+};
+
+const getStripeWebhookSecret = (): string => {
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    throw new Error('STRIPE_WEBHOOK_SECRET is not configured in Convex env.');
+  }
+  return webhookSecret;
+};
+
+const textEncoder = new TextEncoder();
+
+const bytesToHex = (bytes: Uint8Array): string =>
+  Array.from(bytes)
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+
+const timingSafeEqual = (a: string, b: string): boolean => {
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return mismatch === 0;
+};
+
+const computeStripeHmac = async (
+  payload: string,
+  timestamp: string,
+  webhookSecret: string
+): Promise<string> => {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    textEncoder.encode(webhookSecret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const signed = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    textEncoder.encode(`${timestamp}.${payload}`)
+  );
+  return bytesToHex(new Uint8Array(signed));
+};
+
+const verifyStripeWebhookSignature = async (
+  payload: string,
+  signatureHeader: string | null,
+  webhookSecret: string
+): Promise<boolean> => {
+  if (!signatureHeader) return false;
+
+  const parts = signatureHeader.split(',').map((part) => part.trim());
+  const timestamp = parts.find((part) => part.startsWith('t='))?.slice(2);
+  const signatures = parts
+    .filter((part) => part.startsWith('v1='))
+    .map((part) => part.slice(3).toLowerCase())
+    .filter(Boolean);
+
+  if (!timestamp || signatures.length === 0) {
+    return false;
+  }
+
+  const ageSeconds = Math.abs(Date.now() / 1000 - Number(timestamp));
+  if (!Number.isFinite(ageSeconds) || ageSeconds > 300) {
+    return false;
+  }
+
+  const expected = (await computeStripeHmac(payload, timestamp, webhookSecret)).toLowerCase();
+  return signatures.some((signature) => timingSafeEqual(signature, expected));
+};
+
+const getString = (value: unknown): string | null =>
+  typeof value === 'string' && value.trim() ? value.trim() : null;
+
+const resolveUserFromStripeObject = async (
+  ctx: any,
+  stripeObject: Record<string, unknown>
+): Promise<{ _id: Id<'users'>; email: string; fullName: string } | null> => {
+  const metadata = isObject(stripeObject.metadata) ? stripeObject.metadata : null;
+  const metadataUserId = getString(metadata?.user_id);
+  if (metadataUserId) {
+    try {
+      const user = await ctx.runQuery(api.appData.getUserById, {
+        userId: metadataUserId as Id<'users'>,
+      });
+      if (user) return user;
+    } catch {
+      // Ignore malformed ids and continue with other lookup strategies.
+    }
+  }
+
+  const customerId = getString(stripeObject.customer);
+  if (customerId) {
+    const user = await ctx.runQuery(api.appData.getUserByStripeCustomer, {
+      stripeCustomerId: customerId,
+    });
+    if (user) return user;
+  }
+
+  const customerDetails = isObject(stripeObject.customer_details) ? stripeObject.customer_details : null;
+  const email =
+    getString(stripeObject.customer_email) ||
+    getString(customerDetails?.email) ||
+    getString(stripeObject.email);
+
+  if (email) {
+    return await ctx.runQuery(api.appData.getUserByEmail, { email });
+  }
+
+  return null;
 };
 
 const appendFormValue = (form: URLSearchParams, key: string, value: unknown) => {
@@ -1126,6 +1239,108 @@ router.route({
 });
 
 router.route({
+  path: '/api/stripe-webhook',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    try {
+      const payload = await req.text();
+      const stripeSignature =
+        req.headers.get('stripe-signature') || req.headers.get('Stripe-Signature');
+
+      const webhookSecret = getStripeWebhookSecret();
+      const isValidSignature = await verifyStripeWebhookSignature(
+        payload,
+        stripeSignature,
+        webhookSecret
+      );
+
+      if (!isValidSignature) {
+        return new Response(JSON.stringify({ error: 'Invalid Stripe signature' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const event = JSON.parse(payload) as {
+        type?: string;
+        data?: { object?: unknown };
+      };
+
+      const eventType = getString(event.type);
+      const stripeObject =
+        isObject(event.data) && isObject(event.data.object) ? event.data.object : null;
+
+      if (!eventType || !stripeObject) {
+        return new Response(JSON.stringify({ received: true }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (eventType === 'checkout.session.completed') {
+        const user = await resolveUserFromStripeObject(ctx, stripeObject);
+        const customerId = getString(stripeObject.customer);
+        const subscriptionId = getString(stripeObject.subscription);
+
+        if (user) {
+          await ctx.runMutation(api.appData.updateUser, {
+            userId: user._id,
+            subscriptionTier: 'entrepreneur',
+            ...(customerId ? { stripeCustomerId: customerId } : {}),
+            ...(subscriptionId ? { stripeSubscriptionId: subscriptionId } : {}),
+          });
+        }
+      }
+
+      if (eventType === 'customer.subscription.updated' || eventType === 'customer.subscription.deleted') {
+        const customerId = getString(stripeObject.customer);
+        if (customerId) {
+          const user = await ctx.runQuery(api.appData.getUserByStripeCustomer, {
+            stripeCustomerId: customerId,
+          });
+
+          if (user) {
+            const subscriptionId = getString(stripeObject.id);
+            const status = getString(stripeObject.status);
+            const isEntrepreneur =
+              eventType !== 'customer.subscription.deleted' &&
+              (status === 'active' || status === 'trialing' || status === 'past_due');
+
+            await ctx.runMutation(api.appData.updateUser, {
+              userId: user._id,
+              subscriptionTier: isEntrepreneur ? 'entrepreneur' : 'free',
+              stripeCustomerId: customerId,
+              ...(subscriptionId ? { stripeSubscriptionId: subscriptionId } : {}),
+            });
+          }
+        }
+      }
+
+      return new Response(JSON.stringify({ received: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Stripe webhook failed';
+      return new Response(JSON.stringify({ error: message }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  }),
+});
+
+router.route({
+  path: '/api/stripe-webhook',
+  method: 'OPTIONS',
+  handler: httpAction(async (_, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    return new Response('ok', { headers: corsHeaders });
+  }),
+});
+
+router.route({
   path: '/api/create-checkout-session',
   method: 'POST',
   handler: httpAction(async (ctx, req) => {
@@ -1152,6 +1367,12 @@ router.route({
       const cancelUrl = body.cancelUrl?.trim() || `${origin}/pricing?canceled=true`;
       const email = body.email?.trim() || auth?.user.email;
       const customerId = await findStripeCustomerIdByEmail(email);
+      if (auth && customerId) {
+        await ctx.runMutation(api.appData.updateUser, {
+          userId: auth.user._id,
+          stripeCustomerId: customerId,
+        });
+      }
 
       const session = await stripeApiRequest<StripeCheckoutSession>({
         method: 'POST',
@@ -1164,7 +1385,12 @@ router.route({
           line_items: [{ price: priceId, quantity: 1 }],
           ...(customerId ? { customer: customerId } : {}),
           ...(!customerId && email ? { customer_email: email } : {}),
-          ...(auth ? { metadata: { user_id: String(auth.user._id) } } : {}),
+          ...(auth
+            ? {
+                metadata: { user_id: String(auth.user._id) },
+                subscription_data: { metadata: { user_id: String(auth.user._id) } },
+              }
+            : {}),
         },
       });
 
