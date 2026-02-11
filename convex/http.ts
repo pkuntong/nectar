@@ -37,6 +37,16 @@ type AuthSession = {
   user: AuthUser;
 };
 
+type AuthTokenType = 'email_verification' | 'password_reset';
+
+type GoogleTokenInfo = {
+  aud?: string;
+  email?: string;
+  email_verified?: string;
+  sub?: string;
+  name?: string;
+};
+
 const router = httpRouter();
 
 const getCorsHeaders = (origin: string | null) => ({
@@ -263,6 +273,33 @@ const getStripeWebhookSecret = (): string => {
   return webhookSecret;
 };
 
+const getAppOrigin = (req: Request, redirectTo?: string): string => {
+  const fallback =
+    process.env.PUBLIC_APP_URL ||
+    process.env.VITE_PUBLIC_APP_URL ||
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+    process.env.VERCEL_URL ||
+    'https://nectarforge.app';
+
+  if (redirectTo) {
+    try {
+      return new URL(redirectTo).origin;
+    } catch {
+      // Ignore invalid redirect override and continue with request origin.
+    }
+  }
+
+  const requestOrigin = req.headers.get('origin');
+  if (requestOrigin) {
+    return requestOrigin;
+  }
+
+  if (/^https?:\/\//i.test(fallback)) {
+    return fallback;
+  }
+  return `https://${fallback}`;
+};
+
 const textEncoder = new TextEncoder();
 
 const bytesToHex = (bytes: Uint8Array): string =>
@@ -481,6 +518,139 @@ const hashPassword = async (password: string): Promise<string> => {
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 };
 
+const createOpaqueToken = (): string => {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return bytesToHex(bytes);
+};
+
+const buildVerifyEmailHtml = (verifyLink: string): string =>
+  `
+  <p>Welcome to Nectar Forge.</p>
+  <p>Please confirm your email to activate your account:</p>
+  <p><a href="${verifyLink}">Confirm my email</a></p>
+  <p>If you did not sign up, you can ignore this email.</p>
+`.trim();
+
+const buildPasswordResetHtml = (resetLink: string): string =>
+  `
+  <p>We received a request to reset your Nectar Forge password.</p>
+  <p><a href="${resetLink}">Reset my password</a></p>
+  <p>This link expires in 1 hour.</p>
+  <p>If you did not request this, you can ignore this email.</p>
+`.trim();
+
+const sanitizeEmailProviderError = (message: string): string => {
+  if (/invalid login|authentication failed|535/i.test(message)) {
+    return 'SMTP authentication failed. Please update SMTP_USER and SMTP_PASS in Convex env.';
+  }
+  return message.split('\n')[0]?.trim() || 'Email provider request failed.';
+};
+
+const sendEmailViaConfiguredProvider = async (
+  ctx: any,
+  args: { to: string; subject: string; html: string }
+): Promise<{ success: boolean; provider?: 'smtp' | 'resend'; skipped?: boolean; error?: string }> => {
+  let smtpResult:
+    | { success?: boolean; error?: string }
+    | null = null;
+  try {
+    smtpResult = await ctx.runAction(api.emailNode.sendEmail, {
+      to: args.to,
+      subject: args.subject,
+      html: args.html,
+    });
+  } catch (error) {
+    smtpResult = {
+      success: false,
+      error:
+        error instanceof Error
+          ? sanitizeEmailProviderError(error.message)
+          : 'SMTP send failed.',
+    };
+  }
+
+  if (smtpResult?.success) {
+    return { success: true, provider: 'smtp' };
+  }
+
+  const resendKey = process.env.RESEND_API_KEY;
+  if (!resendKey) {
+    return {
+      success: false,
+      skipped: true,
+      error:
+        (smtpResult?.error ? sanitizeEmailProviderError(smtpResult.error) : undefined) ||
+        'Email provider is not configured (configure SMTP or set RESEND_API_KEY).',
+    };
+  }
+
+  const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${resendKey}`,
+    },
+    body: JSON.stringify({
+      from: `Nectar <${fromEmail}>`,
+      to: [args.to],
+      subject: args.subject,
+      html: args.html,
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Resend API error: ${text}`);
+  }
+
+  return { success: true, provider: 'resend' };
+};
+
+const issueAuthToken = async (
+  ctx: any,
+  args: {
+    userId: Id<'users'>;
+    type: AuthTokenType;
+    expiresInMs: number;
+  }
+): Promise<string> => {
+  const rawToken = createOpaqueToken();
+  const tokenHash = await hashPassword(rawToken);
+  await ctx.runMutation(api.appData.replaceAuthToken, {
+    userId: args.userId,
+    type: args.type,
+    tokenHash,
+    expiresAt: Date.now() + args.expiresInMs,
+  });
+  return rawToken;
+};
+
+const consumeAuthToken = async (
+  ctx: any,
+  args: {
+    rawToken: string;
+    type: AuthTokenType;
+  }
+) => {
+  const tokenHash = await hashPassword(args.rawToken);
+  const token = await ctx.runQuery(api.appData.getAuthTokenByHash, {
+    tokenHash,
+    type: args.type,
+  });
+  if (!token) {
+    return null;
+  }
+  await ctx.runMutation(api.appData.consumeAuthToken, { tokenId: token._id });
+  return token;
+};
+
+const getGoogleClientId = (): string | null => {
+  const clientId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID;
+  return clientId?.trim() || null;
+};
+
 const getBearerToken = (req: Request): string | null => {
   const authorization = req.headers.get('authorization') || req.headers.get('Authorization');
   if (!authorization) return null;
@@ -571,7 +741,7 @@ router.route({
         email?: string;
         password?: string;
         fullName?: string;
-        options?: { data?: { full_name?: string } };
+        options?: { data?: { full_name?: string }; emailRedirectTo?: string };
       };
 
       const email = body.email?.trim().toLowerCase();
@@ -596,12 +766,33 @@ router.route({
         email,
         passwordHash,
         fullName,
+        emailVerified: false,
       });
+
+      let emailSent = false;
+      if (user) {
+        const verifyToken = await issueAuthToken(ctx, {
+          userId: user._id,
+          type: 'email_verification',
+          expiresInMs: 24 * 60 * 60 * 1000,
+        });
+        const appOrigin = getAppOrigin(req, body.options?.emailRedirectTo);
+        const verifyUrl = new URL('/', appOrigin);
+        verifyUrl.searchParams.set('verify_email_token', verifyToken);
+
+        const emailResult = await sendEmailViaConfiguredProvider(ctx, {
+          to: user.email,
+          subject: 'Confirm your Nectar Forge email',
+          html: buildVerifyEmailHtml(verifyUrl.toString()),
+        });
+        emailSent = !!emailResult?.success;
+      }
 
       return new Response(
         JSON.stringify({
           user: user ? toAuthUser(user) : null,
           session: null,
+          emailSent,
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -649,6 +840,19 @@ router.route({
         });
       }
 
+      if (user.emailVerified === false) {
+        return new Response(
+          JSON.stringify({
+            error:
+              'Email not verified. Please check your inbox and confirm your email before signing in.',
+          }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
       const passwordHash = await hashPassword(password);
       if (user.passwordHash !== passwordHash) {
         return new Response(JSON.stringify({ error: 'Invalid login credentials' }), {
@@ -686,6 +890,398 @@ router.route({
 
 router.route({
   path: '/api/auth/sign-in',
+  method: 'OPTIONS',
+  handler: httpAction(async (_, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    return new Response('ok', { headers: corsHeaders });
+  }),
+});
+
+router.route({
+  path: '/api/auth/verify-email',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    try {
+      const body = (await req.json()) as { token?: string };
+      const rawToken = body.token?.trim();
+      if (!rawToken) {
+        return new Response(JSON.stringify({ error: 'Missing verification token.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const token = await consumeAuthToken(ctx, {
+        rawToken,
+        type: 'email_verification',
+      });
+      if (!token) {
+        return new Response(JSON.stringify({ error: 'Invalid or expired verification token.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const user = await ctx.runQuery(api.appData.getUserById, { userId: token.userId });
+      if (!user) {
+        return new Response(JSON.stringify({ error: 'User not found for this token.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      await ctx.runMutation(api.appData.updateUser, {
+        userId: user._id,
+        emailVerified: true,
+      });
+      await ctx.runMutation(api.appData.deleteAuthTokensByUserType, {
+        userId: user._id,
+        type: 'email_verification',
+      });
+
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to verify email';
+      return new Response(JSON.stringify({ error: message }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  }),
+});
+
+router.route({
+  path: '/api/auth/verify-email',
+  method: 'OPTIONS',
+  handler: httpAction(async (_, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    return new Response('ok', { headers: corsHeaders });
+  }),
+});
+
+router.route({
+  path: '/api/auth/resend-verification',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    try {
+      const body = (await req.json()) as { email?: string; redirectTo?: string };
+      const email = body.email?.trim().toLowerCase();
+      if (!email) {
+        return new Response(JSON.stringify({ error: 'Email is required.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const user = await ctx.runQuery(api.appData.getUserByEmail, { email });
+      if (!user) {
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (user.emailVerified === true) {
+        return new Response(JSON.stringify({ success: true, alreadyVerified: true }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const verifyToken = await issueAuthToken(ctx, {
+        userId: user._id,
+        type: 'email_verification',
+        expiresInMs: 24 * 60 * 60 * 1000,
+      });
+      const appOrigin = getAppOrigin(req, body.redirectTo);
+      const verifyUrl = new URL('/', appOrigin);
+      verifyUrl.searchParams.set('verify_email_token', verifyToken);
+
+      const emailResult = await sendEmailViaConfiguredProvider(ctx, {
+        to: user.email,
+        subject: 'Confirm your Nectar Forge email',
+        html: buildVerifyEmailHtml(verifyUrl.toString()),
+      });
+      if (!emailResult.success) {
+        return new Response(
+          JSON.stringify({ error: emailResult.error || 'Failed to send verification email.' }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to resend verification email';
+      return new Response(JSON.stringify({ error: message }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  }),
+});
+
+router.route({
+  path: '/api/auth/resend-verification',
+  method: 'OPTIONS',
+  handler: httpAction(async (_, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    return new Response('ok', { headers: corsHeaders });
+  }),
+});
+
+router.route({
+  path: '/api/auth/request-password-reset',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    try {
+      const body = (await req.json()) as { email?: string; redirectTo?: string };
+      const email = body.email?.trim().toLowerCase();
+      if (!email) {
+        return new Response(JSON.stringify({ error: 'Email is required.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const user = await ctx.runQuery(api.appData.getUserByEmail, { email });
+      if (!user) {
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const resetToken = await issueAuthToken(ctx, {
+        userId: user._id,
+        type: 'password_reset',
+        expiresInMs: 60 * 60 * 1000,
+      });
+      const appOrigin = getAppOrigin(req, body.redirectTo);
+      const resetUrl = new URL('/', appOrigin);
+      resetUrl.searchParams.set('reset_password_token', resetToken);
+
+      const emailResult = await sendEmailViaConfiguredProvider(ctx, {
+        to: user.email,
+        subject: 'Reset your Nectar Forge password',
+        html: buildPasswordResetHtml(resetUrl.toString()),
+      });
+      if (!emailResult.success) {
+        return new Response(
+          JSON.stringify({ error: emailResult.error || 'Failed to send password reset email.' }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to request password reset';
+      return new Response(JSON.stringify({ error: message }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  }),
+});
+
+router.route({
+  path: '/api/auth/request-password-reset',
+  method: 'OPTIONS',
+  handler: httpAction(async (_, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    return new Response('ok', { headers: corsHeaders });
+  }),
+});
+
+router.route({
+  path: '/api/auth/reset-password',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    try {
+      const body = (await req.json()) as { token?: string; password?: string };
+      const rawToken = body.token?.trim();
+      const password = body.password ?? '';
+      if (!rawToken) {
+        return new Response(JSON.stringify({ error: 'Missing reset token.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (password.length < 6) {
+        return new Response(JSON.stringify({ error: 'Password must be at least 6 characters.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const token = await consumeAuthToken(ctx, {
+        rawToken,
+        type: 'password_reset',
+      });
+      if (!token) {
+        return new Response(JSON.stringify({ error: 'Invalid or expired password reset token.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const user = await ctx.runQuery(api.appData.getUserById, { userId: token.userId });
+      if (!user) {
+        return new Response(JSON.stringify({ error: 'User not found for this token.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const passwordHash = await hashPassword(password);
+      await ctx.runMutation(api.appData.updateUser, {
+        userId: user._id,
+        passwordHash,
+      });
+      await ctx.runMutation(api.appData.deleteSessionsByUser, { userId: user._id });
+      await ctx.runMutation(api.appData.deleteAuthTokensByUserType, {
+        userId: user._id,
+        type: 'password_reset',
+      });
+
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to reset password';
+      return new Response(JSON.stringify({ error: message }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  }),
+});
+
+router.route({
+  path: '/api/auth/reset-password',
+  method: 'OPTIONS',
+  handler: httpAction(async (_, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    return new Response('ok', { headers: corsHeaders });
+  }),
+});
+
+router.route({
+  path: '/api/auth/google',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    try {
+      const body = (await req.json()) as { idToken?: string; credential?: string };
+      const idToken = getString(body.idToken) || getString(body.credential);
+      if (!idToken) {
+        return new Response(JSON.stringify({ error: 'Missing Google credential.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const googleResponse = await fetch(
+        `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`
+      );
+      if (!googleResponse.ok) {
+        return new Response(JSON.stringify({ error: 'Invalid Google credential.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const tokenInfo = (await googleResponse.json()) as GoogleTokenInfo;
+      const configuredClientId = getGoogleClientId();
+      if (configuredClientId && tokenInfo.aud !== configuredClientId) {
+        return new Response(JSON.stringify({ error: 'Google credential is for a different client.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const email = getString(tokenInfo.email)?.toLowerCase();
+      const emailVerified = getString(tokenInfo.email_verified)?.toLowerCase() === 'true';
+      if (!email || !emailVerified) {
+        return new Response(JSON.stringify({ error: 'Google account email is not verified.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const fullName = getString(tokenInfo.name) || email.split('@')[0] || 'User';
+      let user = await ctx.runQuery(api.appData.getUserByEmail, { email });
+      if (!user) {
+        const passwordHash = await hashPassword(
+          `google:${tokenInfo.sub || email}:${Date.now()}:${createOpaqueToken()}`
+        );
+        user = await ctx.runMutation(api.appData.createUser, {
+          email,
+          passwordHash,
+          fullName,
+          emailVerified: true,
+        });
+      } else if (user.emailVerified !== true) {
+        user = await ctx.runMutation(api.appData.updateUser, {
+          userId: user._id,
+          emailVerified: true,
+        });
+      }
+
+      if (!user) {
+        return new Response(JSON.stringify({ error: 'Failed to authenticate Google user.' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const token = createSessionToken();
+      const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+      await ctx.runMutation(api.appData.createSession, {
+        token,
+        userId: user._id,
+        expiresAt,
+      });
+
+      const session: AuthSession = {
+        access_token: token,
+        user: toAuthUser(user),
+      };
+
+      return new Response(JSON.stringify({ user: session.user, session }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Google sign-in failed';
+      return new Response(JSON.stringify({ error: message }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  }),
+});
+
+router.route({
+  path: '/api/auth/google',
   method: 'OPTIONS',
   handler: httpAction(async (_, req) => {
     const corsHeaders = getCorsHeaders(req.headers.get('origin'));
@@ -1112,28 +1708,18 @@ router.route({
       const defaultHtml = `<p>Welcome to Nectar Forge!</p><p>Your account is ready.</p>`;
       const emailHtml = body.html || defaultHtml;
 
-      const smtpResult = await ctx.runAction(api.emailNode.sendEmail, {
+      const emailResult = await sendEmailViaConfiguredProvider(ctx, {
         to,
         subject,
         html: emailHtml,
       });
 
-      if (smtpResult?.success) {
-        return new Response(JSON.stringify({ success: true, provider: 'smtp' }), {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      const resendKey = process.env.RESEND_API_KEY;
-      if (!resendKey) {
+      if (!emailResult.success) {
         return new Response(
           JSON.stringify({
             success: false,
-            skipped: true,
-            error:
-              smtpResult?.error ||
-              'Email provider is not configured (configure SMTP or set RESEND_API_KEY).',
+            skipped: emailResult.skipped ?? false,
+            error: emailResult.error || 'Failed to send email.',
           }),
           {
             status: 200,
@@ -1142,27 +1728,7 @@ router.route({
         );
       }
 
-      const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${resendKey}`,
-        },
-        body: JSON.stringify({
-          from: `Nectar <${fromEmail}>`,
-          to: [to],
-          subject,
-          html: emailHtml,
-        }),
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Resend API error: ${text}`);
-      }
-
-      return new Response(JSON.stringify({ success: true, provider: 'resend' }), {
+      return new Response(JSON.stringify({ success: true, provider: emailResult.provider }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

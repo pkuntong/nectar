@@ -195,13 +195,132 @@ const upsertTable = async (
   return { data: data?.data ?? null, error: null };
 };
 
+type GoogleIdAccounts = {
+  initialize: (config: {
+    client_id: string;
+    callback: (response: { credential?: string }) => void;
+    auto_select?: boolean;
+    ux_mode?: 'popup' | 'redirect';
+    itp_support?: boolean;
+  }) => void;
+  prompt: (listener?: (notification: GooglePromptMomentNotification) => void) => void;
+};
+
+type GooglePromptMomentNotification = {
+  isNotDisplayed?: () => boolean;
+  getNotDisplayedReason?: () => string;
+  isSkippedMoment?: () => boolean;
+  getSkippedReason?: () => string;
+};
+
+declare global {
+  interface Window {
+    google?: {
+      accounts?: {
+        id?: GoogleIdAccounts;
+      };
+    };
+  }
+}
+
+let googleScriptPromise: Promise<void> | null = null;
+
+const getGoogleClientId = (): string => {
+  const processEnvClientId =
+    typeof process !== 'undefined' && process.env ? process.env.VITE_GOOGLE_CLIENT_ID : undefined;
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || processEnvClientId;
+  return clientId?.trim() || '';
+};
+
+const loadGoogleScript = async (): Promise<void> => {
+  if (window.google?.accounts?.id) {
+    return;
+  }
+  if (!googleScriptPromise) {
+    googleScriptPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Failed to load Google sign-in script.'));
+      document.head.appendChild(script);
+    });
+  }
+  await googleScriptPromise;
+};
+
+const requestGoogleCredential = async (): Promise<string> => {
+  const clientId = getGoogleClientId();
+  if (!clientId) {
+    throw new Error('Google sign-in is not configured (missing VITE_GOOGLE_CLIENT_ID).');
+  }
+
+  await loadGoogleScript();
+
+  return await new Promise((resolve, reject) => {
+    const googleId = window.google?.accounts?.id;
+    if (!googleId) {
+      reject(new Error('Google sign-in is unavailable.'));
+      return;
+    }
+
+    let settled = false;
+    const finish = (resolver: () => void) => {
+      if (settled) return;
+      settled = true;
+      resolver();
+    };
+
+    const timeoutId = window.setTimeout(() => {
+      finish(() => reject(new Error('Google sign-in timed out. Please try again.')));
+    }, 60000);
+
+    googleId.initialize({
+      client_id: clientId,
+      callback: (response) => {
+        const credential = response?.credential;
+        finish(() => {
+          window.clearTimeout(timeoutId);
+          if (!credential) {
+            reject(new Error('Google did not return an authentication token.'));
+            return;
+          }
+          resolve(credential);
+        });
+      },
+      auto_select: false,
+      ux_mode: 'popup',
+      itp_support: true,
+    });
+
+    googleId.prompt((notification) => {
+      if (settled) return;
+      if (notification?.isNotDisplayed?.() || notification?.isSkippedMoment?.()) {
+        const reason =
+          notification?.getNotDisplayedReason?.() ||
+          notification?.getSkippedReason?.() ||
+          'Google sign-in is unavailable in this browser context.';
+        finish(() => {
+          window.clearTimeout(timeoutId);
+          reject(new Error(reason));
+        });
+      }
+    });
+  });
+};
+
 const auth = {
   signUp: async (params: {
     email: string;
     password: string;
     options?: { data?: { full_name?: string }; emailRedirectTo?: string };
   }) => {
-    const { data, error } = await callConvexApi<{ user: User | null; session: Session | null }>(
+    const { data, error } = await callConvexApi<{
+      user: User | null;
+      session: Session | null;
+      emailSent?: boolean;
+    }>(
       '/api/auth/sign-up',
       {
         method: 'POST',
@@ -210,7 +329,9 @@ const auth = {
     );
 
     return {
-      data: data ? { user: data.user, session: data.session } : { user: null, session: null },
+      data: data
+        ? { user: data.user, session: data.session, emailSent: !!data.emailSent }
+        : { user: null, session: null, emailSent: false },
       error,
     };
   },
@@ -232,10 +353,82 @@ const auth = {
     };
   },
 
-  signInWithOAuth: async (_params: { provider: string; options?: { redirectTo?: string } }) => {
+  signInWithOAuth: async (params: { provider: string; options?: { redirectTo?: string } }) => {
+    if (params.provider !== 'google') {
+      return {
+        data: null,
+        error: authError(`Unsupported OAuth provider "${params.provider}"`),
+      };
+    }
+
+    try {
+      const credential = await requestGoogleCredential();
+      const { data, error } = await callConvexApi<{ user: User; session: Session }>('/api/auth/google', {
+        method: 'POST',
+        body: { idToken: credential },
+      });
+
+      if (!error && data?.session) {
+        saveSession(data.session);
+        emitAuthState('SIGNED_IN');
+      }
+
+      return {
+        data: data ? { user: data.user, session: data.session } : { user: null, session: null },
+        error,
+      };
+    } catch (error: any) {
+      return {
+        data: null,
+        error: authError(error?.message || 'Google sign-in failed'),
+      };
+    }
+  },
+
+  verifyEmail: async (params: { token: string }) => {
+    const { data, error } = await callConvexApi<{ success: boolean }>('/api/auth/verify-email', {
+      method: 'POST',
+      body: params,
+    });
     return {
-      data: null,
-      error: authError('missing OAuth secret'),
+      data: data ?? { success: false },
+      error,
+    };
+  },
+
+  resendVerificationEmail: async (params: { email: string; redirectTo?: string }) => {
+    const { data, error } = await callConvexApi<{ success: boolean; alreadyVerified?: boolean }>(
+      '/api/auth/resend-verification',
+      {
+        method: 'POST',
+        body: params,
+      }
+    );
+    return {
+      data: data ?? { success: false },
+      error,
+    };
+  },
+
+  requestPasswordReset: async (params: { email: string; redirectTo?: string }) => {
+    const { data, error } = await callConvexApi<{ success: boolean }>('/api/auth/request-password-reset', {
+      method: 'POST',
+      body: params,
+    });
+    return {
+      data: data ?? { success: false },
+      error,
+    };
+  },
+
+  resetPassword: async (params: { token: string; password: string }) => {
+    const { data, error } = await callConvexApi<{ success: boolean }>('/api/auth/reset-password', {
+      method: 'POST',
+      body: params,
+    });
+    return {
+      data: data ?? { success: false },
+      error,
     };
   },
 

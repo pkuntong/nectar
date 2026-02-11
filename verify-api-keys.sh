@@ -47,6 +47,8 @@ echo "🔍 Checking Convex secrets..."
 
 deployment="${CONVEX_DEPLOYMENT:-quaint-lion-604}"
 deployment="${deployment#dev:}"
+deployment="${deployment%%#*}"
+deployment="$(echo "$deployment" | xargs)"
 
 if env_output=$(npx convex env list --deployment-name "$deployment" 2>/dev/null); then
   check_convex_secret() {
@@ -66,9 +68,15 @@ if env_output=$(npx convex env list --deployment-name "$deployment" 2>/dev/null)
   check_convex_secret "SMTP_HOST"
   check_convex_secret "SMTP_PORT"
   check_convex_secret "SMTP_FROM_EMAIL"
+  check_convex_secret "GOOGLE_CLIENT_ID"
 
   if echo "$env_output" | grep -q "^SMTP_USER=" && echo "$env_output" | grep -q "^SMTP_PASS="; then
-    echo "✅ SMTP_USER and SMTP_PASS are set in Convex ($deployment)"
+    if echo "$env_output" | grep -q "^SMTP_PASS=YOUR_NAMECHEAP_MAILBOX_PASSWORD$"; then
+      echo "❌ ERROR: SMTP_PASS is still set to placeholder value in Convex ($deployment)"
+      total_errors=$((total_errors + 1))
+    else
+      echo "✅ SMTP_USER and SMTP_PASS are set in Convex ($deployment)"
+    fi
   elif echo "$env_output" | grep -q "^RESEND_API_KEY="; then
     echo "⚠️  SMTP credentials missing; falling back to RESEND_API_KEY"
   else
@@ -102,6 +110,7 @@ if [ -f ".env.production" ]; then
   check_env_var "VITE_STRIPE_PRICE_FREE"
   check_env_var "VITE_STRIPE_PRICE_ENTREPRENEUR"
   check_env_var "VITE_CONVEX_SITE_URL"
+  check_env_var "VITE_GOOGLE_CLIENT_ID"
 fi
 
 echo ""

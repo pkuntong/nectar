@@ -8,6 +8,7 @@ const defaultNotificationPreferences = {
 };
 
 const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+const authTokenType = v.union(v.literal('email_verification'), v.literal('password_reset'));
 
 export const getUserByEmail = query({
   args: { email: v.string() },
@@ -41,6 +42,7 @@ export const createUser = mutation({
     email: v.string(),
     passwordHash: v.string(),
     fullName: v.optional(v.string()),
+    emailVerified: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const email = args.email.toLowerCase().trim();
@@ -56,6 +58,7 @@ export const createUser = mutation({
     const userId = await ctx.db.insert('users', {
       email,
       passwordHash: args.passwordHash,
+      emailVerified: args.emailVerified ?? false,
       fullName: (args.fullName || email.split('@')[0] || 'User').trim(),
       subscriptionTier: 'free',
       usageCount: 0,
@@ -74,6 +77,8 @@ export const updateUser = mutation({
     userId: v.id('users'),
     email: v.optional(v.string()),
     fullName: v.optional(v.string()),
+    passwordHash: v.optional(v.string()),
+    emailVerified: v.optional(v.boolean()),
     subscriptionTier: v.optional(v.string()),
     stripeCustomerId: v.optional(v.string()),
     stripeSubscriptionId: v.optional(v.string()),
@@ -106,6 +111,8 @@ export const updateUser = mutation({
     await ctx.db.patch(args.userId, {
       ...(args.email !== undefined ? { email: args.email.toLowerCase().trim() } : {}),
       ...(args.fullName !== undefined ? { fullName: args.fullName.trim() } : {}),
+      ...(args.passwordHash !== undefined ? { passwordHash: args.passwordHash } : {}),
+      ...(args.emailVerified !== undefined ? { emailVerified: args.emailVerified } : {}),
       ...(args.subscriptionTier !== undefined ? { subscriptionTier: args.subscriptionTier } : {}),
       ...(args.stripeCustomerId !== undefined ? { stripeCustomerId: args.stripeCustomerId } : {}),
       ...(args.stripeSubscriptionId !== undefined
@@ -140,6 +147,14 @@ export const deleteUserCascade = mutation({
       .collect();
     for (const outcome of outcomes) {
       await ctx.db.delete(outcome._id);
+    }
+
+    const authTokens = await ctx.db
+      .query('authTokens')
+      .withIndex('by_user_type', (q) => q.eq('userId', args.userId))
+      .collect();
+    for (const token of authTokens) {
+      await ctx.db.delete(token._id);
     }
 
     await ctx.db.delete(args.userId);
@@ -187,6 +202,106 @@ export const deleteSession = mutation({
       .first();
     if (session) {
       await ctx.db.delete(session._id);
+    }
+    return { success: true };
+  },
+});
+
+export const deleteSessionsByUser = mutation({
+  args: { userId: v.id('users') },
+  handler: async (ctx, args) => {
+    const sessions = await ctx.db
+      .query('sessions')
+      .withIndex('by_user', (q) => q.eq('userId', args.userId))
+      .collect();
+    for (const session of sessions) {
+      await ctx.db.delete(session._id);
+    }
+    return { success: true };
+  },
+});
+
+export const replaceAuthToken = mutation({
+  args: {
+    userId: v.id('users'),
+    tokenHash: v.string(),
+    type: authTokenType,
+    expiresAt: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query('authTokens')
+      .withIndex('by_user_type', (q) => q.eq('userId', args.userId).eq('type', args.type))
+      .collect();
+    for (const token of existing) {
+      await ctx.db.delete(token._id);
+    }
+
+    const now = Date.now();
+    const tokenId = await ctx.db.insert('authTokens', {
+      userId: args.userId,
+      tokenHash: args.tokenHash,
+      type: args.type,
+      expiresAt: args.expiresAt,
+      createdAt: now,
+    });
+    return await ctx.db.get(tokenId);
+  },
+});
+
+export const getAuthTokenByHash = query({
+  args: {
+    tokenHash: v.string(),
+    type: authTokenType,
+  },
+  handler: async (ctx, args) => {
+    const token = await ctx.db
+      .query('authTokens')
+      .withIndex('by_token_hash', (q) => q.eq('tokenHash', args.tokenHash))
+      .first();
+
+    if (!token || token.type !== args.type) {
+      return null;
+    }
+    if (token.consumedAt !== undefined) {
+      return null;
+    }
+    if (token.expiresAt < Date.now()) {
+      return null;
+    }
+    return token;
+  },
+});
+
+export const consumeAuthToken = mutation({
+  args: { tokenId: v.id('authTokens') },
+  handler: async (ctx, args) => {
+    const token = await ctx.db.get(args.tokenId);
+    if (!token) {
+      return { success: false };
+    }
+    if (token.consumedAt !== undefined) {
+      return { success: false };
+    }
+    await ctx.db.patch(args.tokenId, {
+      consumedAt: Date.now(),
+    });
+    return { success: true };
+  },
+});
+
+export const deleteAuthTokensByUserType = mutation({
+  args: {
+    userId: v.id('users'),
+    type: authTokenType,
+  },
+  handler: async (ctx, args) => {
+    const tokens = await ctx.db
+      .query('authTokens')
+      .withIndex('by_user_type', (q) => q.eq('userId', args.userId).eq('type', args.type))
+      .collect();
+    for (const token of tokens) {
+      await ctx.db.delete(token._id);
     }
     return { success: true };
   },

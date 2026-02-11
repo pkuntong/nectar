@@ -5,6 +5,7 @@ export default defineSchema({
   users: defineTable({
     email: v.string(),
     passwordHash: v.string(),
+    emailVerified: v.optional(v.boolean()),
     fullName: v.string(),
     subscriptionTier: v.string(),
     stripeCustomerId: v.optional(v.string()),
@@ -30,6 +31,17 @@ export default defineSchema({
   })
     .index('by_token', ['token'])
     .index('by_user', ['userId']),
+
+  authTokens: defineTable({
+    userId: v.id('users'),
+    tokenHash: v.string(),
+    type: v.union(v.literal('email_verification'), v.literal('password_reset')),
+    expiresAt: v.number(),
+    consumedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index('by_token_hash', ['tokenHash'])
+    .index('by_user_type', ['userId', 'type']),
 
   hustleOutcomes: defineTable({
     userId: v.id('users'),

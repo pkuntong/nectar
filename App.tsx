@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import HowItWorks from './components/HowItWorks';
@@ -45,6 +46,10 @@ type Page = 'home' | 'pricing' | 'about' | 'privacy' | 'terms' | 'google-oauth-s
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [activeModal, setActiveModal] = useState<'login' | 'pricing' | 'info' | null>(null);
+  const [loginInitialMode, setLoginInitialMode] = useState<'signin' | 'signup' | 'forgot' | 'reset'>(
+    'signin'
+  );
+  const [loginResetToken, setLoginResetToken] = useState<string | null>(null);
   const [infoType, setInfoType] = useState<'pricing' | 'about' | 'privacy' | 'tos'>('about');
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [showDashboard, setShowDashboard] = useState(true); // Track if we should show dashboard or homepage
@@ -54,6 +59,41 @@ function App() {
   // Check auth state on mount
   useEffect(() => {
     const timeoutIds: NodeJS.Timeout[] = []; // Track timeouts for cleanup at useEffect level
+
+    const handleAuthQueryParams = async () => {
+      const url = new URL(window.location.href);
+      const verifyToken = url.searchParams.get('verify_email_token');
+      const resetToken = url.searchParams.get('reset_password_token');
+
+      if (!verifyToken && !resetToken) {
+        return;
+      }
+
+      if (verifyToken) {
+        try {
+          const { error } = await convexClient.auth.verifyEmail({ token: verifyToken });
+          if (error) {
+            setError(error.message);
+          } else {
+            toast.success('Email confirmed. You can now sign in.');
+          }
+        } catch {
+          setError('Email verification failed. Request a new verification email and try again.');
+        }
+        url.searchParams.delete('verify_email_token');
+        setActiveModal('login');
+        setLoginInitialMode('signin');
+      }
+
+      if (resetToken) {
+        setActiveModal('login');
+        setLoginInitialMode('reset');
+        setLoginResetToken(resetToken);
+        url.searchParams.delete('reset_password_token');
+      }
+
+      window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+    };
     
     // Handle OAuth callback tokens in URL hash
     const handleOAuthCallback = async () => {
@@ -118,6 +158,7 @@ function App() {
 
     // Handle OAuth callback
     handleOAuthCallback();
+    handleAuthQueryParams();
 
     const {
       data: { subscription },
@@ -189,6 +230,8 @@ function App() {
   const handleLoginSuccess = () => {
     setActiveModal(null);
     setError(null);
+    setLoginInitialMode('signin');
+    setLoginResetToken(null);
   };
 
   const handleLogout = async () => {
@@ -214,6 +257,8 @@ function App() {
   const closeModal = () => {
     setActiveModal(null);
     setError(null);
+    setLoginInitialMode('signin');
+    setLoginResetToken(null);
   };
   
   const handleInfoClick = (type: 'pricing' | 'about' | 'privacy' | 'tos') => {
@@ -362,7 +407,14 @@ function App() {
         title={getModalTitle()}
         size={activeModal === 'pricing' ? '2xl' : 'md'}
       >
-        {activeModal === 'login' && <Login onLoginSuccess={handleLoginSuccess} onError={handleError} />}
+        {activeModal === 'login' && (
+          <Login
+            onLoginSuccess={handleLoginSuccess}
+            onError={handleError}
+            initialMode={loginInitialMode}
+            initialResetToken={loginResetToken}
+          />
+        )}
         {activeModal === 'pricing' && <Pricing />}
         {activeModal === 'info' && <InfoContent type={infoType} />}
       </Modal>

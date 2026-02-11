@@ -35,6 +35,7 @@ npx convex env set SMTP_PORT 465 --deployment-name quaint-lion-604
 npx convex env set SMTP_USER noreply@nectarforge.app --deployment-name quaint-lion-604
 npx convex env set SMTP_PASS your_private_email_password --deployment-name quaint-lion-604
 npx convex env set SMTP_FROM_EMAIL noreply@nectarforge.app --deployment-name quaint-lion-604
+npx convex env set GOOGLE_CLIENT_ID your_google_oauth_client_id.apps.googleusercontent.com --deployment-name quaint-lion-604
 ```
 
 ### 4. Generate Convex code + deploy functions
@@ -59,7 +60,9 @@ Stripe webhook URL:
 
 ## Auth
 - Email/password auth is implemented with Convex-backed session tokens.
-- Google OAuth UI entry exists, but OAuth provider integration is currently disabled in Convex mode.
+- Email verification is required before password sign-in.
+- Password reset flow is implemented via emailed reset links.
+- Google sign-in is implemented through Google Identity credential verification in Convex (`POST /api/auth/google`).
 
 ## Signup Emails (Namecheap SMTP)
 - The backend sends emails via SMTP first (Namecheap Private Email), then falls back to Resend if configured.
