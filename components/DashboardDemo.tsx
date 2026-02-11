@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { convexClient } from '../lib/convexClient';
 import {
   hasAnonymousReachedLimit,
   hasUserReachedLimit,
@@ -75,7 +75,7 @@ const DashboardDemo: React.FC<DashboardDemoProps> = ({ onSignUpClick, onPricingC
     }
 
     // Get current user
-    supabase.auth.getUser().then(({ data }) => {
+    convexClient.auth.getUser().then(({ data }) => {
       setUser(data.user);
     }).catch((error) => {
       logger.error('Error getting user in DashboardDemo:', error);

@@ -1,5 +1,7 @@
 import { httpRouter } from 'convex/server';
 import { httpAction } from './_generated/server';
+import { api } from './_generated/api';
+import type { Id } from './_generated/dataModel';
 
 type Hustle = {
   hustleName: string;
@@ -20,6 +22,19 @@ type StripeCheckoutSession = {
 type StripePortalSession = {
   id: string;
   url: string;
+};
+
+type AuthUser = {
+  id: string;
+  email: string;
+  user_metadata: {
+    full_name: string;
+  };
+};
+
+type AuthSession = {
+  access_token: string;
+  user: AuthUser;
 };
 
 const router = httpRouter();
@@ -328,6 +343,712 @@ const findStripeCustomerIdByEmail = async (email?: string): Promise<string | nul
   return typeof id === 'string' ? id : null;
 };
 
+const toAuthUser = (user: {
+  _id: Id<'users'>;
+  email: string;
+  fullName: string;
+}): AuthUser => ({
+  id: String(user._id),
+  email: user.email,
+  user_metadata: {
+    full_name: user.fullName,
+  },
+});
+
+const createSessionToken = (): string => {
+  const random = crypto.randomUUID().replace(/-/g, '');
+  return `${Date.now().toString(36)}_${random}`;
+};
+
+const hashPassword = async (password: string): Promise<string> => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+};
+
+const getBearerToken = (req: Request): string | null => {
+  const authorization = req.headers.get('authorization') || req.headers.get('Authorization');
+  if (!authorization) return null;
+  const [scheme, token] = authorization.split(' ');
+  if (scheme?.toLowerCase() !== 'bearer' || !token) return null;
+  return token.trim();
+};
+
+const resolveAuthSession = async (
+  ctx: any,
+  req: Request
+): Promise<{ token: string; user: { _id: Id<'users'>; email: string; fullName: string } } | null> => {
+  const token = getBearerToken(req);
+  if (!token) return null;
+
+  const session = await ctx.runQuery(api.appData.getSessionByToken, { token });
+  if (!session) return null;
+
+  const user = await ctx.runQuery(api.appData.getUserById, { userId: session.userId });
+  if (!user) return null;
+
+  return { token, user };
+};
+
+const sanitizeNotificationPreferences = (value: unknown) => {
+  if (
+    isObject(value) &&
+    typeof value.weekly === 'boolean' &&
+    typeof value.product === 'boolean' &&
+    typeof value.offers === 'boolean'
+  ) {
+    return {
+      weekly: value.weekly,
+      product: value.product,
+      offers: value.offers,
+    };
+  }
+  return null;
+};
+
+const mapUserProfileRow = (user: {
+  _id: Id<'users'>;
+  subscriptionTier: string;
+  notificationPreferences: {
+    weekly: boolean;
+    product: boolean;
+    offers: boolean;
+  };
+  usageCount: number;
+  usageResetDate: number;
+}) => ({
+  id: String(user._id),
+  subscription_tier: user.subscriptionTier,
+  notification_preferences: user.notificationPreferences,
+  usage_count: user.usageCount,
+  usage_reset_date: new Date(user.usageResetDate).toISOString(),
+});
+
+const mapOutcomeRow = (outcome: {
+  _id: Id<'hustleOutcomes'>;
+  userId: Id<'users'>;
+  hustleName: string;
+  tookAction?: boolean;
+  launched?: boolean;
+  revenue?: number;
+  feedback?: string;
+  createdAt: number;
+  updatedAt: number;
+}) => ({
+  id: String(outcome._id),
+  user_id: String(outcome.userId),
+  hustle_name: outcome.hustleName,
+  took_action: outcome.tookAction ?? null,
+  launched: outcome.launched ?? null,
+  revenue: outcome.revenue ?? null,
+  feedback: outcome.feedback ?? '',
+  created_at: new Date(outcome.createdAt).toISOString(),
+  updated_at: new Date(outcome.updatedAt).toISOString(),
+});
+
+router.route({
+  path: '/api/auth/sign-up',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    try {
+      const body = (await req.json()) as {
+        email?: string;
+        password?: string;
+        fullName?: string;
+        options?: { data?: { full_name?: string } };
+      };
+
+      const email = body.email?.trim().toLowerCase();
+      const password = body.password ?? '';
+      const fullName = body.fullName ?? body.options?.data?.full_name ?? '';
+
+      if (!email || !password) {
+        return new Response(JSON.stringify({ error: 'Email and password are required.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (password.length < 6) {
+        return new Response(JSON.stringify({ error: 'Password must be at least 6 characters.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const passwordHash = await hashPassword(password);
+      const user = await ctx.runMutation(api.appData.createUser, {
+        email,
+        passwordHash,
+        fullName,
+      });
+
+      return new Response(
+        JSON.stringify({
+          user: user ? toAuthUser(user) : null,
+          session: null,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to create account';
+      return new Response(JSON.stringify({ error: message }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  }),
+});
+
+router.route({
+  path: '/api/auth/sign-up',
+  method: 'OPTIONS',
+  handler: httpAction(async (_, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    return new Response('ok', { headers: corsHeaders });
+  }),
+});
+
+router.route({
+  path: '/api/auth/sign-in',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    try {
+      const body = (await req.json()) as { email?: string; password?: string };
+      const email = body.email?.trim().toLowerCase();
+      const password = body.password ?? '';
+
+      if (!email || !password) {
+        return new Response(JSON.stringify({ error: 'Email and password are required.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const user = await ctx.runQuery(api.appData.getUserByEmail, { email });
+      if (!user) {
+        return new Response(JSON.stringify({ error: 'Invalid login credentials' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const passwordHash = await hashPassword(password);
+      if (user.passwordHash !== passwordHash) {
+        return new Response(JSON.stringify({ error: 'Invalid login credentials' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const token = createSessionToken();
+      const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+      await ctx.runMutation(api.appData.createSession, {
+        token,
+        userId: user._id,
+        expiresAt,
+      });
+
+      const session: AuthSession = {
+        access_token: token,
+        user: toAuthUser(user),
+      };
+
+      return new Response(JSON.stringify({ user: session.user, session }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Login failed';
+      return new Response(JSON.stringify({ error: message }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  }),
+});
+
+router.route({
+  path: '/api/auth/sign-in',
+  method: 'OPTIONS',
+  handler: httpAction(async (_, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    return new Response('ok', { headers: corsHeaders });
+  }),
+});
+
+router.route({
+  path: '/api/auth/session',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    const auth = await resolveAuthSession(ctx, req);
+    if (!auth) {
+      return new Response(JSON.stringify({ session: null }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const session: AuthSession = {
+      access_token: auth.token,
+      user: toAuthUser(auth.user),
+    };
+
+    return new Response(JSON.stringify({ session }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }),
+});
+
+router.route({
+  path: '/api/auth/session',
+  method: 'OPTIONS',
+  handler: httpAction(async (_, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    return new Response('ok', { headers: corsHeaders });
+  }),
+});
+
+router.route({
+  path: '/api/auth/sign-out',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    const token = getBearerToken(req);
+    if (token) {
+      await ctx.runMutation(api.appData.deleteSession, { token });
+    }
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }),
+});
+
+router.route({
+  path: '/api/auth/sign-out',
+  method: 'OPTIONS',
+  handler: httpAction(async (_, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    return new Response('ok', { headers: corsHeaders });
+  }),
+});
+
+router.route({
+  path: '/api/auth/update-user',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    try {
+      const auth = await resolveAuthSession(ctx, req);
+      if (!auth) {
+        return new Response(JSON.stringify({ error: 'User not authenticated' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const body = (await req.json()) as {
+        email?: string;
+        data?: {
+          full_name?: string;
+        };
+      };
+
+      const updatedUser = await ctx.runMutation(api.appData.updateUser, {
+        userId: auth.user._id,
+        ...(body.email ? { email: body.email } : {}),
+        ...(body.data?.full_name ? { fullName: body.data.full_name } : {}),
+      });
+
+      return new Response(JSON.stringify({ user: updatedUser ? toAuthUser(updatedUser) : null }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update user';
+      return new Response(JSON.stringify({ error: message }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  }),
+});
+
+router.route({
+  path: '/api/auth/update-user',
+  method: 'OPTIONS',
+  handler: httpAction(async (_, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    return new Response('ok', { headers: corsHeaders });
+  }),
+});
+
+router.route({
+  path: '/api/user/delete',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    const auth = await resolveAuthSession(ctx, req);
+    if (!auth) {
+      return new Response(JSON.stringify({ error: 'User not authenticated' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    await ctx.runMutation(api.appData.deleteSession, { token: auth.token });
+    await ctx.runMutation(api.appData.deleteUserCascade, { userId: auth.user._id });
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }),
+});
+
+router.route({
+  path: '/api/user/delete',
+  method: 'OPTIONS',
+  handler: httpAction(async (_, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    return new Response('ok', { headers: corsHeaders });
+  }),
+});
+
+router.route({
+  path: '/api/db/select',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    try {
+      const auth = await resolveAuthSession(ctx, req);
+      const body = (await req.json()) as {
+        table?: string;
+        columns?: string;
+        filters?: Array<{ column?: string; value?: unknown }>;
+      };
+
+      const table = body.table;
+      const filters = body.filters || [];
+      const getFilterValue = (column: string) =>
+        filters.find((f) => f.column === column)?.value as string | undefined;
+
+      if (table === 'user_profiles') {
+        const userId = getFilterValue('id') || auth?.user._id;
+        if (!userId) {
+          return new Response(JSON.stringify({ data: null }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        const user = await ctx.runQuery(api.appData.getUserById, { userId: userId as Id<'users'> });
+        const row = user ? mapUserProfileRow(user) : null;
+        return new Response(JSON.stringify({ data: row }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (table === 'hustle_outcomes') {
+        const userId = getFilterValue('user_id') || auth?.user._id;
+        const hustleName = getFilterValue('hustle_name');
+        if (!userId || !hustleName) {
+          return new Response(JSON.stringify({ data: null }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        const outcome = await ctx.runQuery(api.appData.getHustleOutcome, {
+          userId: userId as Id<'users'>,
+          hustleName,
+        });
+        return new Response(JSON.stringify({ data: outcome ? mapOutcomeRow(outcome) : null }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify({ data: null, error: 'Unsupported table' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Select failed';
+      return new Response(JSON.stringify({ error: message }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  }),
+});
+
+router.route({
+  path: '/api/db/select',
+  method: 'OPTIONS',
+  handler: httpAction(async (_, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    return new Response('ok', { headers: corsHeaders });
+  }),
+});
+
+router.route({
+  path: '/api/db/update',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    try {
+      const auth = await resolveAuthSession(ctx, req);
+      const body = (await req.json()) as {
+        table?: string;
+        values?: Record<string, unknown>;
+        filters?: Array<{ column?: string; value?: unknown }>;
+      };
+      const table = body.table;
+      const values = body.values || {};
+      const filters = body.filters || [];
+      const getFilterValue = (column: string) =>
+        filters.find((f) => f.column === column)?.value as string | undefined;
+
+      if (table === 'user_profiles') {
+        const userId = (getFilterValue('id') || auth?.user._id) as Id<'users'> | undefined;
+        if (!userId) {
+          throw new Error('Missing user id filter');
+        }
+
+        const notificationPreferences = sanitizeNotificationPreferences(values.notification_preferences);
+        const usageResetDate =
+          typeof values.usage_reset_date === 'string'
+            ? new Date(values.usage_reset_date).getTime()
+            : typeof values.usage_reset_date === 'number'
+            ? values.usage_reset_date
+            : undefined;
+
+        await ctx.runMutation(api.appData.updateUser, {
+          userId,
+          ...(typeof values.subscription_tier === 'string'
+            ? { subscriptionTier: values.subscription_tier }
+            : {}),
+          ...(typeof values.usage_count === 'number' ? { usageCount: values.usage_count } : {}),
+          ...(usageResetDate ? { usageResetDate } : {}),
+          ...(notificationPreferences ? { notificationPreferences } : {}),
+        });
+        return new Response(JSON.stringify({ data: null, error: null }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify({ error: 'Unsupported table' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Update failed';
+      return new Response(JSON.stringify({ error: message }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  }),
+});
+
+router.route({
+  path: '/api/db/update',
+  method: 'OPTIONS',
+  handler: httpAction(async (_, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    return new Response('ok', { headers: corsHeaders });
+  }),
+});
+
+router.route({
+  path: '/api/db/upsert',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    try {
+      const auth = await resolveAuthSession(ctx, req);
+      const body = (await req.json()) as {
+        table?: string;
+        values?: Record<string, unknown>;
+      };
+      const table = body.table;
+      const values = body.values || {};
+
+      if (table === 'user_profiles') {
+        const userId = (values.id as Id<'users'> | undefined) || auth?.user._id;
+        if (!userId) {
+          return new Response(JSON.stringify({ data: null, error: null }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        const existing = await ctx.runQuery(api.appData.getUserById, { userId });
+        if (!existing) {
+          return new Response(JSON.stringify({ data: null, error: null }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        const notificationPreferences = sanitizeNotificationPreferences(values.notification_preferences);
+        const usageResetDate =
+          typeof values.usage_reset_date === 'string'
+            ? new Date(values.usage_reset_date).getTime()
+            : typeof values.usage_reset_date === 'number'
+            ? values.usage_reset_date
+            : undefined;
+
+        const updated = await ctx.runMutation(api.appData.updateUser, {
+          userId,
+          ...(typeof values.subscription_tier === 'string'
+            ? { subscriptionTier: values.subscription_tier }
+            : {}),
+          ...(typeof values.usage_count === 'number' ? { usageCount: values.usage_count } : {}),
+          ...(usageResetDate ? { usageResetDate } : {}),
+          ...(notificationPreferences ? { notificationPreferences } : {}),
+        });
+        return new Response(
+          JSON.stringify({ data: updated ? mapUserProfileRow(updated) : null, error: null }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      if (table === 'hustle_outcomes') {
+        const userId = (values.user_id as Id<'users'> | undefined) || auth?.user._id;
+        const hustleName = typeof values.hustle_name === 'string' ? values.hustle_name : undefined;
+        if (!userId || !hustleName) {
+          return new Response(JSON.stringify({ data: null, error: null }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        const updated = await ctx.runMutation(api.appData.upsertHustleOutcome, {
+          userId,
+          hustleName,
+          ...(typeof values.took_action === 'boolean' ? { tookAction: values.took_action } : {}),
+          ...(typeof values.launched === 'boolean' ? { launched: values.launched } : {}),
+          ...(typeof values.revenue === 'number' ? { revenue: values.revenue } : {}),
+          ...(typeof values.feedback === 'string' ? { feedback: values.feedback } : {}),
+        });
+
+        return new Response(
+          JSON.stringify({ data: updated ? mapOutcomeRow(updated) : null, error: null }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      return new Response(JSON.stringify({ error: 'Unsupported table' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Upsert failed';
+      return new Response(JSON.stringify({ error: message }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  }),
+});
+
+router.route({
+  path: '/api/db/upsert',
+  method: 'OPTIONS',
+  handler: httpAction(async (_, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    return new Response('ok', { headers: corsHeaders });
+  }),
+});
+
+router.route({
+  path: '/api/send-email',
+  method: 'POST',
+  handler: httpAction(async (_, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    try {
+      const body = (await req.json()) as {
+        to?: string;
+        subject?: string;
+        html?: string;
+        type?: string;
+      };
+
+      const resendKey = process.env.RESEND_API_KEY;
+      if (!resendKey) {
+        return new Response(JSON.stringify({ success: true, skipped: true }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const to = body.to?.trim();
+      const subject = body.subject?.trim() || 'Welcome to Nectar Forge';
+      if (!to) {
+        return new Response(JSON.stringify({ error: 'Missing "to" email address.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const defaultHtml = `<p>Welcome to Nectar Forge!</p><p>Your account is ready.</p>`;
+      const emailHtml = body.html || defaultHtml;
+
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${resendKey}`,
+        },
+        body: JSON.stringify({
+          from: 'Nectar <onboarding@resend.dev>',
+          to: [to],
+          subject,
+          html: emailHtml,
+        }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Resend API error: ${text}`);
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to send email';
+      return new Response(JSON.stringify({ error: message }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  }),
+});
+
+router.route({
+  path: '/api/send-email',
+  method: 'OPTIONS',
+  handler: httpAction(async (_, req) => {
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+    return new Response('ok', { headers: corsHeaders });
+  }),
+});
+
 router.route({
   path: '/api/generate-hustles',
   method: 'POST',
@@ -407,9 +1128,10 @@ router.route({
 router.route({
   path: '/api/create-checkout-session',
   method: 'POST',
-  handler: httpAction(async (_, req) => {
+  handler: httpAction(async (ctx, req) => {
     const corsHeaders = getCorsHeaders(req.headers.get('origin'));
     try {
+      const auth = await resolveAuthSession(ctx, req);
       const body = (await req.json()) as {
         priceId?: string;
         email?: string;
@@ -428,7 +1150,7 @@ router.route({
       const origin = req.headers.get('origin') ?? 'https://quaint-lion-604.convex.site';
       const successUrl = body.successUrl?.trim() || `${origin}/dashboard?success=true`;
       const cancelUrl = body.cancelUrl?.trim() || `${origin}/pricing?canceled=true`;
-      const email = body.email?.trim();
+      const email = body.email?.trim() || auth?.user.email;
       const customerId = await findStripeCustomerIdByEmail(email);
 
       const session = await stripeApiRequest<StripeCheckoutSession>({
@@ -442,6 +1164,7 @@ router.route({
           line_items: [{ price: priceId, quantity: 1 }],
           ...(customerId ? { customer: customerId } : {}),
           ...(!customerId && email ? { customer_email: email } : {}),
+          ...(auth ? { metadata: { user_id: String(auth.user._id) } } : {}),
         },
       });
 
@@ -477,9 +1200,10 @@ router.route({
 router.route({
   path: '/api/create-portal-session',
   method: 'POST',
-  handler: httpAction(async (_, req) => {
+  handler: httpAction(async (ctx, req) => {
     const corsHeaders = getCorsHeaders(req.headers.get('origin'));
     try {
+      const auth = await resolveAuthSession(ctx, req);
       const body = (await req.json()) as {
         email?: string;
         customerId?: string;
@@ -489,7 +1213,8 @@ router.route({
       const origin = req.headers.get('origin') ?? 'https://quaint-lion-604.convex.site';
       const returnUrl = body.returnUrl?.trim() || `${origin}/dashboard?tab=settings`;
       const customerId =
-        body.customerId?.trim() || (await findStripeCustomerIdByEmail(body.email?.trim()));
+        body.customerId?.trim() ||
+        (await findStripeCustomerIdByEmail(body.email?.trim() || auth?.user.email));
 
       if (!customerId) {
         return new Response(JSON.stringify({ error: 'No Stripe customer found for this user.' }), {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { convexClient } from '../lib/convexClient';
 import { logger } from '../lib/logger';
 
 interface OutcomeTrackerProps {
@@ -34,10 +34,10 @@ const OutcomeTracker: React.FC<OutcomeTrackerProps> = ({ hustleName, generatedDa
 
   const checkExistingResponse = React.useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await convexClient.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
+      const { data, error } = await convexClient
         .from('hustle_outcomes')
         .select('*')
         .eq('user_id', user.id)
@@ -68,11 +68,11 @@ const OutcomeTracker: React.FC<OutcomeTrackerProps> = ({ hustleName, generatedDa
 
   const handleSubmit = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await convexClient.auth.getUser();
       if (!user) return;
 
       // Save to database
-      const { error } = await supabase
+      const { error } = await convexClient
         .from('hustle_outcomes')
         .upsert({
           user_id: user.id,

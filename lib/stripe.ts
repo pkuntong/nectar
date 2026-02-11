@@ -66,31 +66,6 @@ const callConvexStripeApi = async <T>(path: string, body: Record<string, unknown
   return data as T;
 };
 
-const tryClientSideCheckoutRedirect = async (priceId: string): Promise<string | null> => {
-  try {
-    const stripe = await stripePromise;
-    if (!stripe) {
-      return 'Stripe publishable key is missing.';
-    }
-
-    const result = await stripe.redirectToCheckout({
-      lineItems: [{ price: priceId, quantity: 1 }],
-      mode: 'subscription',
-      successUrl: `${window.location.origin}/dashboard?success=true`,
-      cancelUrl: `${window.location.origin}/pricing?canceled=true`,
-    });
-
-    if (result.error) {
-      return result.error.message || 'Stripe redirect failed.';
-    }
-
-    // If redirect succeeds, the page navigates away.
-    return null;
-  } catch (error: any) {
-    return error?.message || 'Stripe redirect failed.';
-  }
-};
-
 export const createCheckoutSession = async (
   priceId: string,
   options?: { email?: string }
@@ -125,18 +100,10 @@ export const createCheckoutSession = async (
     };
   } catch (error: any) {
     logger.error('Error creating checkout session:', error);
-    const fallbackError = await tryClientSideCheckoutRedirect(priceId);
-    if (!fallbackError) {
-      return {
-        sessionId: null,
-        url: null,
-        error: null,
-      };
-    }
     return {
       sessionId: null,
       url: null,
-      error: error?.message || fallbackError || 'Failed to create checkout session.',
+      error: error?.message || 'Failed to create checkout session.',
     };
   }
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { convexClient } from '../lib/convexClient';
 import { createCheckoutSession, createPortalSession, STRIPE_PRICES } from '../lib/stripe';
 import Sidebar from './Sidebar';
 import DashboardHeader from './DashboardHeader';
@@ -232,13 +232,13 @@ const SettingsContent: React.FC<{ onProfileUpdate?: () => void }> = ({ onProfile
 
     const loadProfile = async () => {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await convexClient.auth.getUser();
             if (user) {
                 setEmail(user.email || '');
                 setFullName(user.user_metadata?.full_name || user.email?.split('@')[0] || '');
 
                 // Load subscription tier and notification preferences
-                const { data: profile } = await supabase
+                const { data: profile } = await convexClient
                     .from('user_profiles')
                     .select('subscription_tier, notification_preferences')
                     .eq('id', user.id)
@@ -262,7 +262,7 @@ const SettingsContent: React.FC<{ onProfileUpdate?: () => void }> = ({ onProfile
         e.preventDefault();
         setSaving(true);
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await convexClient.auth.getUser();
             if (!user) throw new Error('User not found');
             
             const updateData: any = { data: { full_name: fullName } };
@@ -272,7 +272,7 @@ const SettingsContent: React.FC<{ onProfileUpdate?: () => void }> = ({ onProfile
                 updateData.email = email;
             }
             
-            const { error } = await supabase.auth.updateUser(updateData);
+            const { error } = await convexClient.auth.updateUser(updateData);
             if (error) throw error;
             alert('Profile updated successfully! Please check your email if you changed it.');
             // Reload profile and notify parent
@@ -298,22 +298,22 @@ const SettingsContent: React.FC<{ onProfileUpdate?: () => void }> = ({ onProfile
 
         setLoading(true);
         try {
-            // Call the delete-user Edge Function
-            const { data, error } = await supabase.functions.invoke('delete-user', {
+            // Call the delete-user API route
+            const { data, error } = await convexClient.functions.invoke('delete-user', {
                 method: 'POST',
             });
 
             if (error) throw error;
             
             alert('Account deleted. Redirecting...');
-            await supabase.auth.signOut();
+            await convexClient.auth.signOut();
             window.location.href = '/';
         } catch (error: any) {
             logger.error('Delete error:', error);
             
-            // Check if the error is that the Edge Function doesn't exist
+            // Handle missing route/deployment issues gracefully
             if (error?.message?.includes('Function not found') || error?.message?.includes('404')) {
-                alert('Account deletion is not yet available. Please contact support to delete your account.\n\nNote: Edge Functions need to be deployed first. See DEPLOY_EDGE_FUNCTIONS.md for setup instructions.');
+                alert('Account deletion is not yet available. Please contact support to delete your account.');
             } else {
                 alert('Failed to delete account: ' + (error?.message || 'Unknown error'));
             }
@@ -329,9 +329,9 @@ const SettingsContent: React.FC<{ onProfileUpdate?: () => void }> = ({ onProfile
 
         // Save to database
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await convexClient.auth.getUser();
             if (user) {
-                const { error } = await supabase
+                const { error } = await convexClient
                     .from('user_profiles')
                     .update({ notification_preferences: newNotifications })
                     .eq('id', user.id);
@@ -696,9 +696,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToHome }) => 
       // Wait a moment for webhook to process, then check subscription status
       setTimeout(async () => {
         try {
-          const { data: { user } } = await supabase.auth.getUser();
+          const { data: { user } } = await convexClient.auth.getUser();
           if (user) {
-            const { data: profile } = await supabase
+            const { data: profile } = await convexClient
               .from('user_profiles')
               .select('subscription_tier')
               .eq('id', user.id)
@@ -729,7 +729,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToHome }) => 
 
   const loadUserName = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await convexClient.auth.getUser();
       if (user) {
         const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
         setUserName(name);

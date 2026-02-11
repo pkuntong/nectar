@@ -11,8 +11,6 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [
         react({
-          // Fast Refresh for better DX
-          fastRefresh: true,
           // Optimize JSX transform
           jsxRuntime: 'automatic',
         })
@@ -20,8 +18,6 @@ export default defineConfig(({ mode }) => {
       define: {
         // ✅ SAFE - Only expose public environment variables to the frontend
         // These are prefixed with VITE_ and are safe to expose
-        'process.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL),
-        'process.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY),
         'process.env.VITE_STRIPE_PUBLISHABLE_KEY': JSON.stringify(env.VITE_STRIPE_PUBLISHABLE_KEY),
         'process.env.VITE_SENTRY_DSN': JSON.stringify(env.VITE_SENTRY_DSN),
         'process.env.VITE_CONVEX_URL': JSON.stringify(env.VITE_CONVEX_URL),
@@ -31,13 +27,10 @@ export default defineConfig(({ mode }) => {
         'process.env.VITE_STRIPE_PRICE_FREE': JSON.stringify(env.VITE_STRIPE_PRICE_FREE),
         'process.env.VITE_STRIPE_PRICE_ENTREPRENEUR': JSON.stringify(env.VITE_STRIPE_PRICE_ENTREPRENEUR),
 
-        // ⚠️ NEVER expose these secrets in frontend:
-        // - SUPABASE_SERVICE_ROLE_KEY (gives admin access to database)
+        // ⚠️ NEVER expose backend secrets in frontend:
         // - STRIPE_SECRET_KEY (can create charges)
-        // - STRIPE_WEBHOOK_SECRET (webhook verification)
         // - SENTRY_AUTH_TOKEN (Sentry account access)
         // - RESEND_API_KEY (email sending)
-        // These should ONLY be in Supabase Edge Function secrets
       },
       build: {
         // Target modern browsers for smaller bundles
@@ -63,9 +56,6 @@ export default defineConfig(({ mode }) => {
               if (id.includes('node_modules')) {
                 if (id.includes('react') || id.includes('react-dom')) {
                   return 'vendor-react';
-                }
-                if (id.includes('@supabase')) {
-                  return 'vendor-supabase';
                 }
                 if (id.includes('@google/genai')) {
                   return 'vendor-genai';
@@ -99,7 +89,6 @@ export default defineConfig(({ mode }) => {
         include: [
           'react',
           'react-dom',
-          '@supabase/supabase-js',
           '@stripe/stripe-js',
           'react-hot-toast'
         ],

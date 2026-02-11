@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { convexClient } from '../../lib/convexClient';
 import { logger } from '../../lib/logger';
 
 interface SignUpProps {
@@ -18,7 +18,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUpSuccess, onError }) => {
     setLoading(true);
     
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await convexClient.auth.signUp({
         email,
         password,
         options: {
@@ -31,20 +31,17 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUpSuccess, onError }) => {
       if (error) throw error;
 
       if (data?.user) {
-        // Send welcome email via Supabase Edge Function (only if we have a session)
-        if (data.session) {
-          try {
-            await supabase.functions.invoke('send-email', {
-              body: {
-                to: email,
-                subject: 'Welcome to Nectar Forge! 🚀',
-                type: 'welcome',
-              },
-            });
-          } catch (emailError) {
-            // Don't fail signup if email fails, just log it
-            logger.error('Failed to send welcome email:', emailError);
-          }
+        // Send welcome email without blocking account creation.
+        try {
+          await convexClient.functions.invoke('send-email', {
+            body: {
+              to: email,
+              subject: 'Welcome to Nectar Forge! 🚀',
+              type: 'welcome',
+            },
+          });
+        } catch (emailError) {
+          logger.error('Failed to send welcome email:', emailError);
         }
         onSignUpSuccess();
       }
@@ -57,7 +54,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUpSuccess, onError }) => {
 
   const handleGoogleSignUp = async () => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { error } = await convexClient.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}${window.location.pathname}`
@@ -66,7 +63,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUpSuccess, onError }) => {
       if (error) {
         // Provide helpful error message for missing OAuth secret
         if (error.message?.includes('missing OAuth secret') || error.message?.includes('validation_failed')) {
-          onError('Google OAuth is not configured. Please enable Google provider in Supabase Dashboard and add your Client ID and Client Secret. Visit /#google-oauth-setup for setup instructions.');
+          onError('Google OAuth is not configured for this Convex deployment yet. Use email/password sign-up for now.');
         } else {
           throw error;
         }

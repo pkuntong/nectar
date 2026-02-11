@@ -62,7 +62,6 @@ self.addEventListener('fetch', (event) => {
 
   // Network-first strategy for API calls and dynamic content
   if (request.url.includes('/functions/') ||
-      request.url.includes('supabase.co') ||
       request.url.includes('stripe.com') ||
       request.url.includes('groq.com') ||
       request.url.includes('googleapis.com')) {

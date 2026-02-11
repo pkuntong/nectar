@@ -18,8 +18,8 @@ import TermsPage from './components/pages/TermsPage';
 import GoogleOAuthSetupPage from './components/pages/GoogleOAuthSetupPage';
 import Login from './components/auth/Login';
 // SignUp component removed - now integrated into Login component
-import { supabase } from './lib/supabase';
-import type { User } from '@supabase/supabase-js';
+import { convexClient } from './lib/convexClient';
+import type { User } from './lib/convexClient';
 import * as Sentry from '@sentry/react';
 import { logger } from './lib/logger';
 
@@ -55,9 +55,9 @@ function App() {
   useEffect(() => {
     const timeoutIds: NodeJS.Timeout[] = []; // Track timeouts for cleanup at useEffect level
     
-    // Handle OAuth callback - Supabase automatically processes tokens in URL hash
+    // Handle OAuth callback tokens in URL hash
     const handleOAuthCallback = async () => {
-      // Check if URL has OAuth tokens (Supabase adds them to hash)
+      // Check if URL has OAuth-style tokens
       const hash = window.location.hash;
       const hasOAuthTokens = hash.includes('access_token') || 
                             hash.includes('type=recovery') || 
@@ -66,11 +66,11 @@ function App() {
       
       if (hasOAuthTokens && !oAuthProcessingRef.current) {
         oAuthProcessingRef.current = true; // Prevent duplicate processing
-        console.log('OAuth callback detected, waiting for Supabase to process...');
-        // Supabase client will automatically process these tokens
+        console.log('OAuth callback detected, waiting for session processing...');
+        // Client flow processes these tokens via auth session checks.
         // Check session multiple times with increasing delays to ensure we catch it
         const checkSession = async (attempt = 0) => {
-          const { data: { session }, error } = await supabase.auth.getSession();
+          const { data: { session }, error } = await convexClient.auth.getSession();
           if (error) {
             console.error('Error getting session after OAuth:', error);
             if (attempt < 3) {
@@ -107,7 +107,7 @@ function App() {
     };
 
     // Check session on mount
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    convexClient.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         setShowDashboard(true);
@@ -121,7 +121,7 @@ function App() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = convexClient.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, session?.user?.email);
       setUser(session?.user ?? null);
       // After OAuth login, show dashboard
@@ -192,7 +192,7 @@ function App() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await convexClient.auth.signOut();
     setShowDashboard(false);
   };
   

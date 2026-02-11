@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
-import { supabase } from '../../lib/supabase';
+import { convexClient } from '../../lib/convexClient';
 
 interface LoginProps {
   onLoginSuccess: () => void;
@@ -20,7 +20,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onError }) => {
     try {
       if (isSignUp) {
         // Sign up flow
-        const { data, error } = await supabase.auth.signUp({
+        const { data, error } = await convexClient.auth.signUp({
           email,
           password,
           options: {
@@ -39,7 +39,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onError }) => {
         }
       } else {
         // Login flow
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await convexClient.auth.signInWithPassword({
           email,
           password,
         });
@@ -69,7 +69,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onError }) => {
 
   const handleGoogleSignIn = async () => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { error } = await convexClient.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}${window.location.pathname}`
@@ -78,7 +78,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onError }) => {
       if (error) {
         // Provide helpful error message for missing OAuth secret
         if (error.message?.includes('missing OAuth secret') || error.message?.includes('validation_failed')) {
-          onError('Google OAuth is not configured. Please enable Google provider in Supabase Dashboard and add your Client ID and Client Secret. Visit /#google-oauth-setup for setup instructions.');
+          onError('Google OAuth is not configured for this Convex deployment yet. Use email/password sign-in for now.');
         } else {
           throw error;
         }

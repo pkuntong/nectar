@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { convexClient } from './convexClient';
 import { logger } from './logger';
 
 // Usage limits configuration
@@ -71,7 +71,7 @@ const ensureUserProfile = async (userId: string): Promise<void> => {
   const nextReset = new Date();
   nextReset.setDate(nextReset.getDate() + RESET_PERIOD_DAYS);
 
-  await supabase
+  await convexClient
     .from('user_profiles')
     .upsert({
       id: userId,
@@ -94,7 +94,7 @@ export const getUserUsageData = async (userId: string): Promise<{
 }> => {
   try {
     // Try to get profile
-    const { data: profile, error } = await supabase
+    const { data: profile, error } = await convexClient
       .from('user_profiles')
       .select('usage_count, usage_reset_date, subscription_tier')
       .eq('id', userId)
@@ -162,7 +162,7 @@ const resetUserUsage = async (userId: string): Promise<void> => {
   const nextReset = new Date();
   nextReset.setDate(nextReset.getDate() + RESET_PERIOD_DAYS);
 
-  await supabase
+  await convexClient
     .from('user_profiles')
     .update({
       usage_count: 0,
@@ -188,7 +188,7 @@ export const incrementUserUsage = async (userId: string): Promise<number> => {
       await resetUserUsage(userId);
       const newCount = 1;
 
-      await supabase
+      await convexClient
         .from('user_profiles')
         .update({ usage_count: newCount })
         .eq('id', userId);
@@ -199,7 +199,7 @@ export const incrementUserUsage = async (userId: string): Promise<number> => {
     // Increment count
     const newCount = count + 1;
 
-    await supabase
+    await convexClient
       .from('user_profiles')
       .update({ usage_count: newCount })
       .eq('id', userId);
