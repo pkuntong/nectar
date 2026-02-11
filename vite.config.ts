@@ -20,12 +20,13 @@ export default defineConfig(({ mode }) => {
       define: {
         // ✅ SAFE - Only expose public environment variables to the frontend
         // These are prefixed with VITE_ and are safe to expose
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.VITE_GROQ_API_KEY': JSON.stringify(env.VITE_GROQ_API_KEY),
         'process.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL),
         'process.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY),
         'process.env.VITE_STRIPE_PUBLISHABLE_KEY': JSON.stringify(env.VITE_STRIPE_PUBLISHABLE_KEY),
         'process.env.VITE_SENTRY_DSN': JSON.stringify(env.VITE_SENTRY_DSN),
+        'process.env.VITE_CONVEX_URL': JSON.stringify(env.VITE_CONVEX_URL),
+        'process.env.VITE_CONVEX_SITE_URL': JSON.stringify(env.VITE_CONVEX_SITE_URL),
+        'process.env.VITE_CONVEX_GENERATE_HUSTLES_URL': JSON.stringify(env.VITE_CONVEX_GENERATE_HUSTLES_URL),
         // Price IDs (these are safe to expose - they're used client-side)
         'process.env.VITE_STRIPE_PRICE_FREE': JSON.stringify(env.VITE_STRIPE_PRICE_FREE),
         'process.env.VITE_STRIPE_PRICE_ENTREPRENEUR': JSON.stringify(env.VITE_STRIPE_PRICE_ENTREPRENEUR),

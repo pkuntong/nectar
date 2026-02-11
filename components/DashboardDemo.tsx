@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { GoogleGenAI, Type } from "@google/genai";
 import { supabase } from '../lib/supabase';
 import {
   hasAnonymousReachedLimit,
   hasUserReachedLimit,
   incrementAnonymousUsage,
   incrementUserUsage,
+  getDaysUntilReset,
 } from '../lib/usageLimits';
 import { createCheckoutSession, STRIPE_PRICES } from '../lib/stripe';
-import { generateWithGroq } from '../lib/groq';
 import LimitReachedNotification from './LimitReachedNotification';
 import UsageBanner from './UsageBanner';
 import { logger } from '../lib/logger';
+import { generateHustlesWithConvex } from '../lib/convex';
 
 interface Hustle {
   hustleName: string;
@@ -28,6 +28,18 @@ interface DashboardDemoProps {
   onSignUpClick: () => void;
   onPricingClick?: () => void;
 }
+
+const sanitizeLearnMoreUrl = (url: string): string | null => {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.toString();
+    }
+  } catch {
+    // Ignore invalid URLs
+  }
+  return null;
+};
 
 const DashboardDemo: React.FC<DashboardDemoProps> = ({ onSignUpClick, onPricingClick }) => {
   const [interest, setInterest] = useState('Creative & Design');
@@ -202,42 +214,27 @@ Learn More: ${hustle.learnMoreLink}
   };
 
   const handleGenerate = async () => {
-    // STEP 1: Check usage limits FIRST
+    // Check usage limits before generating
     try {
       if (user) {
-        // Logged in user - check database limit
         const limitReached = await hasUserReachedLimit(user.id);
         if (limitReached) {
-          // Get days until reset
-          const { data: profile } = await supabase
-            .from('user_profiles')
-            .select('usage_reset_date')
-            .eq('id', user.id)
-            .single();
-
-          if (profile?.usage_reset_date) {
-            const resetDate = new Date(profile.usage_reset_date);
-            const now = new Date();
-            const diff = resetDate.getTime() - now.getTime();
-            setDaysUntilReset(Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24))));
-          }
-
+          const days = await getDaysUntilReset(user.id);
+          setDaysUntilReset(Math.max(1, days));
           setShowLimitModal(true);
-          return; // STOP - don't generate
+          return;
         }
       } else {
-        // Anonymous user - check localStorage limit
         const limitReached = hasAnonymousReachedLimit();
         if (limitReached) {
           setShowLimitModal(true);
-          return; // STOP - don't generate
+          return;
         }
       }
     } catch (limitError) {
       logger.error('Error checking limit:', limitError);
     }
 
-    // STEP 2: Proceed with generation
     setIsLoading(true);
     setError(null);
     setResults([]);
@@ -247,194 +244,40 @@ Learn More: ${hustle.learnMoreLink}
       const actualBudget = budget === 'Custom' ? customBudget : budget;
       const actualTime = time === 'Custom' ? customTime : time;
 
-      const groqPrompt = `Based on the following user profile, generate exactly 3 unique and creative side hustle ideas.
-- Interest: ${actualInterest}
-- Budget: ${actualBudget}
-- Time per week: ${actualTime}
+      const data = await generateHustlesWithConvex({
+        interest: actualInterest,
+        budget: actualBudget,
+        time: actualTime,
+        userId: user?.id,
+      });
 
-The ideas should be low-cost and suitable for a beginner.
-For each idea, provide a name, a short description, estimated monthly profit, estimated upfront cost, required time commitment per week, a list of 2-3 essential skills, a brief description of potential challenges a beginner might face, and a real, relevant "Learn More" URL (e.g., to a guide, platform, or resource).
-
-Return ONLY a valid JSON array with exactly 3 objects. Each object must have these exact fields:
-- hustleName (string)
-- description (string)
-- estimatedProfit (string)
-- upfrontCost (string)
-- timeCommitment (string)
-- requiredSkills (array of strings)
-- potentialChallenges (string)
-- learnMoreLink (string)
-
-Example format:
-[
-  {
-    "hustleName": "Freelance Graphic Design",
-    "description": "...",
-    "estimatedProfit": "$500-1000/month",
-    "upfrontCost": "$0-50",
-    "timeCommitment": "5-10 hours/week",
-    "requiredSkills": ["Design basics", "Communication"],
-    "potentialChallenges": "...",
-    "learnMoreLink": "https://..."
-  }
-]`;
-
-      const geminiPrompt = `Based on the following user profile, generate 3 unique and creative side hustle ideas.
-      - Interest: ${actualInterest}
-      - Budget: ${actualBudget}
-      - Time per week: ${actualTime}
-      
-      The ideas should be low-cost and suitable for a beginner.
-      For each idea, provide a name, a short description, estimated monthly profit, estimated upfront cost, required time commitment per week, a list of 2-3 essential skills, a brief description of potential challenges a beginner might face, and a real, relevant "Learn More" URL (e.g., to a guide, platform, or resource).`;
-
-      let generatedHustles: Hustle[] = [];
-      let usedGroq = false;
-
-      // Try Groq first (free tier, fast)
-      try {
-        const groqApiKey = import.meta.env.VITE_GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
-        if (groqApiKey) {
-          const groqResponse = await generateWithGroq(groqPrompt, 'llama-3.3-70b-versatile', {
-            temperature: 0.8,
-            maxTokens: 2000,
-          });
-
-          // Parse Groq response - it might return JSON wrapped in markdown code blocks
-          let jsonText = groqResponse.trim();
-          if (!jsonText) {
-            throw new Error('Empty response from Groq API');
-          }
-          
-          if (jsonText.startsWith('```json')) {
-            jsonText = jsonText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-          } else if (jsonText.startsWith('```')) {
-            jsonText = jsonText.replace(/^```\s*/, '').replace(/\s*```$/, '');
-          }
-
-          let parsed;
-          try {
-            parsed = JSON.parse(jsonText);
-          } catch (parseError) {
-            throw new Error(`Invalid JSON response from Groq: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
-          }
-          
-          // Handle both direct array and wrapped in object
-          if (Array.isArray(parsed)) {
-            generatedHustles = parsed;
-          } else if (parsed.ideas && Array.isArray(parsed.ideas)) {
-            generatedHustles = parsed.ideas;
-          } else if (parsed.hustles && Array.isArray(parsed.hustles)) {
-            generatedHustles = parsed.hustles;
-          } else {
-            throw new Error('Unexpected response format from Groq');
-          }
-          
-          if (generatedHustles.length > 0) {
-            usedGroq = true;
-          }
-        }
-      } catch (groqError) {
-        logger.log('Groq generation failed, falling back to Gemini:', groqError);
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid response from AI service');
       }
 
-      // Fallback to Gemini if Groq failed or not configured
-      if (!usedGroq || generatedHustles.length === 0) {
-        const geminiApiKey = import.meta.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY;
-
-        if (!geminiApiKey) {
-          throw new Error("No AI API key configured. Please add VITE_GROQ_API_KEY or GEMINI_API_KEY to your .env file.");
+      if (data.limitReached) {
+        if (typeof data.daysUntilReset === 'number') {
+          setDaysUntilReset(data.daysUntilReset);
         }
-
-        const ai = new GoogleGenAI({ apiKey: geminiApiKey });
-        const responseSchema = {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              hustleName: { type: Type.STRING, description: "The name of the side hustle." },
-              description: { type: Type.STRING, description: "A brief, compelling description." },
-              estimatedProfit: { type: Type.STRING, description: "e.g., '$100 - $500 / month'" },
-              upfrontCost: { type: Type.STRING, description: "e.g., 'Under $50'" },
-              timeCommitment: { type: Type.STRING, description: "e.g., '3-5 hours / week'" },
-              requiredSkills: { type: Type.ARRAY, items: { type: Type.STRING } },
-              potentialChallenges: { type: Type.STRING, description: "A brief summary of potential challenges." },
-              learnMoreLink: { type: Type.STRING, description: "A relevant URL for learning more." }
-            },
-            required: ["hustleName", "description", "estimatedProfit", "upfrontCost", "timeCommitment", "requiredSkills", "potentialChallenges", "learnMoreLink"]
-          }
-        };
-
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: geminiPrompt,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: responseSchema,
-            temperature: 0.8
-          },
-        });
-
-        // Handle different response formats from Google GenAI
-        // The @google/genai SDK returns response with text property or method
-        let resultText: string;
-        try {
-          // The response object from @google/genai has a .text property that returns a string
-          // It might be a getter, so we need to access it directly
-          const responseAny = response as any;
-          
-          if (responseAny?.text !== undefined) {
-            // text is a property (getter or direct)
-            const textValue = responseAny.text;
-            resultText = typeof textValue === 'function' ? textValue().trim() : String(textValue).trim();
-          } else if (responseAny?.response?.text !== undefined) {
-            // Try nested response.text
-            const textValue = responseAny.response.text;
-            resultText = typeof textValue === 'function' ? textValue().trim() : String(textValue).trim();
-          } else if (typeof response === 'string') {
-            resultText = response.trim();
-          } else {
-            throw new Error('Unexpected response format from Gemini API - could not extract text. Response structure: ' + JSON.stringify(response).substring(0, 200));
-          }
-        } catch (extractError) {
-          throw new Error(`Failed to extract text from Gemini response: ${extractError instanceof Error ? extractError.message : 'Unknown error'}`);
-        }
-        
-        if (!resultText) {
-          throw new Error('Empty response from Gemini API');
-        }
-
-        try {
-          generatedHustles = JSON.parse(resultText);
-        } catch (parseError) {
-          throw new Error(`Invalid JSON response from Gemini: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
-        }
-        
-        // Validate the parsed result is an array
-        if (!Array.isArray(generatedHustles)) {
-          throw new Error('Gemini API returned non-array response');
-        }
+        setShowLimitModal(true);
+        return;
       }
 
-      setResults(generatedHustles);
-
-      // STEP 3: Increment usage count (ONLY after successful generation)
-      try {
-        if (user) {
-          await incrementUserUsage(user.id);
-        } else {
-          incrementAnonymousUsage();
-        }
-      } catch (usageError) {
-        logger.error('Error incrementing usage:', usageError);
+      const hustles = (data as { hustles?: Hustle[] }).hustles;
+      if (!Array.isArray(hustles)) {
+        throw new Error('AI service returned invalid data');
       }
 
+      setResults(hustles);
+
+      if (user) {
+        await incrementUserUsage(user.id);
+      } else {
+        incrementAnonymousUsage();
+      }
     } catch (err) {
-      logger.error("Error generating content:", err);
-      let friendlyError = "Sorry, our AI is taking a quick break. Please try again in a moment.";
-      if (err instanceof Error && err.message.includes("API key")) {
-          friendlyError = "The AI service is not configured correctly. Please contact support.";
-      }
-      setError(friendlyError);
+      logger.error('Error generating content:', err);
+      setError('Sorry, our AI is taking a quick break. Please try again in a moment.');
     } finally {
       setIsLoading(false);
     }
@@ -526,10 +369,22 @@ Example format:
                   <div className="bg-brand-orange/10 text-brand-orange-light p-2 rounded-md text-center"><strong>Skills:</strong> {hustle.requiredSkills.join(', ')}</div>
                 </div>
                 <div className="mt-4 text-right">
-                    <a href={hustle.learnMoreLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-sm font-medium text-brand-orange-light hover:underline">
+                    {(() => {
+                      const safeUrl = sanitizeLearnMoreUrl(hustle.learnMoreLink);
+                      return safeUrl ? (
+                      <a
+                        href={safeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center text-sm font-medium text-brand-orange-light hover:underline"
+                      >
                         Learn More
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                    </a>
+                      </a>
+                    ) : (
+                      <span className="text-sm text-medium-text">Learn More link unavailable</span>
+                    );
+                    })()}
                 </div>
               </div>
             ))}

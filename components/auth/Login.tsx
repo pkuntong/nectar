@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
 
 interface LoginProps {
@@ -30,7 +31,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onError }) => {
         if (error) throw error;
 
         if (data?.user) {
-          onError('Account created! Please check your email to verify your account, then you can log in.');
+          toast.success('Account created! Please check your email to verify your account, then you can log in.');
           // Switch back to login mode after successful signup
           setTimeout(() => {
             setIsSignUp(false);
@@ -185,4 +186,3 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onError }) => {
 };
 
 export default Login;
-

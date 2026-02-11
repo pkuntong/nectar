@@ -31,18 +31,20 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUpSuccess, onError }) => {
       if (error) throw error;
 
       if (data?.user) {
-        // Send welcome email via Supabase Edge Function
-        try {
-          await supabase.functions.invoke('send-email', {
-            body: {
-              to: email,
-              subject: 'Welcome to Nectar Forge! 🚀',
-              type: 'welcome',
-            },
-          });
-        } catch (emailError) {
-          // Don't fail signup if email fails, just log it
-          logger.error('Failed to send welcome email:', emailError);
+        // Send welcome email via Supabase Edge Function (only if we have a session)
+        if (data.session) {
+          try {
+            await supabase.functions.invoke('send-email', {
+              body: {
+                to: email,
+                subject: 'Welcome to Nectar Forge! 🚀',
+                type: 'welcome',
+              },
+            });
+          } catch (emailError) {
+            // Don't fail signup if email fails, just log it
+            logger.error('Failed to send welcome email:', emailError);
+          }
         }
         onSignUpSuccess();
       }
@@ -141,4 +143,3 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUpSuccess, onError }) => {
 };
 
 export default SignUp;
-

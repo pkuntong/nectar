@@ -10,6 +10,9 @@ interface ImportMetaEnv {
   readonly RESEND_API_KEY: string;
   readonly VITE_SENTRY_DSN: string;
   readonly SENTRY_AUTH_TOKEN: string;
+  readonly VITE_CONVEX_SITE_URL?: string;
+  readonly VITE_CONVEX_URL?: string;
+  readonly VITE_CONVEX_GENERATE_HUSTLES_URL?: string;
   readonly GEMINI_API_KEY?: string;
   readonly VITE_GROQ_API_KEY?: string;
 }
@@ -17,4 +20,3 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
-

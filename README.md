@@ -45,6 +45,9 @@ VITE_STRIPE_PRICE_FREE=price_xxx
 VITE_STRIPE_PRICE_ENTREPRENEUR=price_xxx
 
 # Optional
+# Defaults to https://quaint-lion-604.convex.site/api/generate-hustles when not set
+# If Convex CLI writes VITE_CONVEX_SITE_URL, the app derives /api/generate-hustles automatically.
+VITE_CONVEX_GENERATE_HUSTLES_URL=https://your-deployment.convex.site/api/generate-hustles
 VITE_GROQ_API_KEY=your_groq_key
 GEMINI_API_KEY=your_gemini_key
 VITE_SENTRY_DSN=your_sentry_dsn
