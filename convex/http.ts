@@ -540,72 +540,50 @@ const buildPasswordResetHtml = (resetLink: string): string =>
   <p>If you did not request this, you can ignore this email.</p>
 `.trim();
 
-const sanitizeEmailProviderError = (message: string): string => {
-  if (/invalid login|authentication failed|535/i.test(message)) {
-    return 'SMTP authentication failed. Please update SMTP_USER and SMTP_PASS in Convex env.';
-  }
-  return message.split('\n')[0]?.trim() || 'Email provider request failed.';
-};
-
 const sendEmailViaConfiguredProvider = async (
-  ctx: any,
+  _ctx: any,
   args: { to: string; subject: string; html: string }
-): Promise<{ success: boolean; provider?: 'smtp' | 'resend'; skipped?: boolean; error?: string }> => {
-  let smtpResult:
-    | { success?: boolean; error?: string }
-    | null = null;
-  try {
-    smtpResult = await ctx.runAction(api.emailNode.sendEmail, {
-      to: args.to,
-      subject: args.subject,
-      html: args.html,
-    });
-  } catch (error) {
-    smtpResult = {
-      success: false,
-      error:
-        error instanceof Error
-          ? sanitizeEmailProviderError(error.message)
-          : 'SMTP send failed.',
-    };
-  }
-
-  if (smtpResult?.success) {
-    return { success: true, provider: 'smtp' };
-  }
-
+): Promise<{ success: boolean; provider?: 'resend'; skipped?: boolean; error?: string }> => {
   const resendKey = process.env.RESEND_API_KEY;
   if (!resendKey) {
     return {
       success: false,
       skipped: true,
-      error:
-        (smtpResult?.error ? sanitizeEmailProviderError(smtpResult.error) : undefined) ||
-        'Email provider is not configured (configure SMTP or set RESEND_API_KEY).',
+      error: 'RESEND_API_KEY is not configured.',
     };
   }
 
   const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${resendKey}`,
-    },
-    body: JSON.stringify({
-      from: `Nectar <${fromEmail}>`,
-      to: [args.to],
-      subject: args.subject,
-      html: args.html,
-    }),
-  });
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${resendKey}`,
+      },
+      body: JSON.stringify({
+        from: `Nectar <${fromEmail}>`,
+        to: [args.to],
+        subject: args.subject,
+        html: args.html,
+      }),
+    });
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Resend API error: ${text}`);
+    if (!response.ok) {
+      const text = await response.text();
+      return {
+        success: false,
+        error: `Resend API error: ${text.split('\n')[0]?.trim() || text}`,
+      };
+    }
+
+    return { success: true, provider: 'resend' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Resend request failed.',
+    };
   }
-
-  return { success: true, provider: 'resend' };
 };
 
 const issueAuthToken = async (

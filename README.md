@@ -30,12 +30,9 @@ npx convex env set STRIPE_SECRET_KEY sk_test_or_sk_live_... --deployment-name qu
 npx convex env set STRIPE_WEBHOOK_SECRET whsec_... --deployment-name quaint-lion-604
 npx convex env set GROQ_API_KEY gsk_... --deployment-name quaint-lion-604
 npx convex env set GEMINI_API_KEY your_gemini_key --deployment-name quaint-lion-604
-npx convex env set SMTP_HOST mail.privateemail.com --deployment-name quaint-lion-604
-npx convex env set SMTP_PORT 465 --deployment-name quaint-lion-604
-npx convex env set SMTP_USER noreply@nectarforge.app --deployment-name quaint-lion-604
-npx convex env set SMTP_PASS your_private_email_password --deployment-name quaint-lion-604
-npx convex env set SMTP_FROM_EMAIL noreply@nectarforge.app --deployment-name quaint-lion-604
 npx convex env set GOOGLE_CLIENT_ID your_google_oauth_client_id.apps.googleusercontent.com --deployment-name quaint-lion-604
+npx convex env set RESEND_API_KEY re_... --deployment-name quaint-lion-604
+npx convex env set RESEND_FROM_EMAIL noreply@yourdomain.com --deployment-name quaint-lion-604
 ```
 
 ### 4. Generate Convex code + deploy functions
@@ -64,10 +61,10 @@ Stripe webhook URL:
 - Password reset flow is implemented via emailed reset links.
 - Google sign-in is implemented through Google Identity credential verification in Convex (`POST /api/auth/google`).
 
-## Signup Emails (Namecheap SMTP)
-- The backend sends emails via SMTP first (Namecheap Private Email), then falls back to Resend if configured.
-- Use `SMTP_USER`/`SMTP_PASS` from your Namecheap mailbox and set `SMTP_FROM_EMAIL` to the sender address.
-- Users will see the `From` address you configure (for example `noreply@nectarforge.app`), not your personal inbox.
+## Signup Emails (Resend)
+- The backend sends verification and password reset emails through Resend.
+- Required: `RESEND_API_KEY`.
+- Recommended: `RESEND_FROM_EMAIL` with a verified sender/domain in Resend.
 
 ## Build
 ```bash

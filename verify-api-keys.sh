@@ -65,23 +65,13 @@ if env_output=$(npx convex env list --deployment-name "$deployment" 2>/dev/null)
   check_convex_secret "STRIPE_WEBHOOK_SECRET"
   check_convex_secret "GROQ_API_KEY"
   check_convex_secret "GEMINI_API_KEY"
-  check_convex_secret "SMTP_HOST"
-  check_convex_secret "SMTP_PORT"
-  check_convex_secret "SMTP_FROM_EMAIL"
   check_convex_secret "GOOGLE_CLIENT_ID"
+  check_convex_secret "RESEND_API_KEY"
 
-  if echo "$env_output" | grep -q "^SMTP_USER=" && echo "$env_output" | grep -q "^SMTP_PASS="; then
-    if echo "$env_output" | grep -q "^SMTP_PASS=YOUR_NAMECHEAP_MAILBOX_PASSWORD$"; then
-      echo "❌ ERROR: SMTP_PASS is still set to placeholder value in Convex ($deployment)"
-      total_errors=$((total_errors + 1))
-    else
-      echo "✅ SMTP_USER and SMTP_PASS are set in Convex ($deployment)"
-    fi
-  elif echo "$env_output" | grep -q "^RESEND_API_KEY="; then
-    echo "⚠️  SMTP credentials missing; falling back to RESEND_API_KEY"
+  if echo "$env_output" | grep -q "^RESEND_FROM_EMAIL="; then
+    echo "✅ RESEND_FROM_EMAIL is set in Convex ($deployment)"
   else
-    echo "❌ ERROR: Missing SMTP_USER/SMTP_PASS (or RESEND_API_KEY fallback)"
-    total_errors=$((total_errors + 1))
+    echo "⚠️  RESEND_FROM_EMAIL is missing; fallback sender onboarding@resend.dev will be used"
   fi
 else
   echo "❌ ERROR: Could not read Convex env for deployment $deployment"
