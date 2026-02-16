@@ -16,8 +16,6 @@ interface ConvexGenerateHustlesRequest {
   budget: string;
   time: string;
   userId?: string;
-  groqApiKey?: string;
-  geminiApiKey?: string;
 }
 
 interface ConvexGenerateHustlesResponse {
@@ -54,17 +52,7 @@ export const generateHustlesWithConvex = async (
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      ...payload,
-      groqApiKey:
-        payload.groqApiKey ||
-        import.meta.env.VITE_GROQ_API_KEY ||
-        (typeof process !== 'undefined' && process.env ? process.env.VITE_GROQ_API_KEY : undefined),
-      geminiApiKey:
-        payload.geminiApiKey ||
-        import.meta.env.VITE_GEMINI_API_KEY ||
-        (typeof process !== 'undefined' && process.env ? process.env.VITE_GEMINI_API_KEY : undefined),
-    }),
+    body: JSON.stringify(payload),
   });
 
   let data: unknown;

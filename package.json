@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite --open",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "security:scan-secrets": "bash scripts/scan-secrets.sh",
+    "security:scan-secrets:history": "bash scripts/scan-secrets.sh --history"
   },
   "dependencies": {
     "@google/genai": "^1.27.0",

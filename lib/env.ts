@@ -11,11 +11,9 @@ const optionalEnvVars = [
   'VITE_SENTRY_DSN',
   'VITE_STRIPE_PRICE_FREE',
   'VITE_STRIPE_PRICE_ENTREPRENEUR',
+  'VITE_GOOGLE_CLIENT_ID',
   'VITE_CONVEX_SITE_URL',
   'VITE_CONVEX_GENERATE_HUSTLES_URL',
-  'VITE_GEMINI_API_KEY',
-  'GEMINI_API_KEY',
-  'VITE_GROQ_API_KEY',
 ] as const;
 
 // Validate required environment variables

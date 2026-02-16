@@ -98,7 +98,7 @@
       <li>Uncheck "Use existing Build Cache"</li>
       <li>Click <strong>Redeploy</strong></li>
     </ol>
-    <p><strong>See <a href="/VERCEL_STRIPE_FIX.md" style="color: #000; font-weight: bold;">VERCEL_STRIPE_FIX.md</a> for detailed instructions.</strong></p>
+    <p><strong>See your deployment docs in <a href="/README.md" style="color: #000; font-weight: bold;">README.md</a> for details.</strong></p>
   </div>
 
   <script type="module">
@@ -107,7 +107,7 @@
       { name: 'VITE_STRIPE_PUBLISHABLE_KEY', displayValue: (v) => v ? `${v.substring(0, 15)}...` : 'MISSING' },
       { name: 'VITE_STRIPE_PRICE_FREE', displayValue: (v) => v || 'MISSING' },
       { name: 'VITE_STRIPE_PRICE_ENTREPRENEUR', displayValue: (v) => v || 'MISSING' },
-      { name: 'VITE_GROQ_API_KEY', displayValue: (v) => v ? `${v.substring(0, 15)}...` : 'MISSING' },
+      { name: 'VITE_CONVEX_SITE_URL', displayValue: (v) => v || 'MISSING' },
       { name: 'VITE_SENTRY_DSN', displayValue: (v) => v ? `${v.substring(0, 30)}...` : 'MISSING' }
     ];
 

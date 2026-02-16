@@ -137,11 +137,8 @@ const normalizeHustles = (raw: unknown): Hustle[] => {
   return hustles;
 };
 
-const generateWithGroq = async (
-  prompt: string,
-  overrideApiKey?: string
-): Promise<Hustle[] | null> => {
-  const apiKey = overrideApiKey || process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
+const generateWithGroq = async (prompt: string): Promise<Hustle[] | null> => {
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     return null;
   }
@@ -180,12 +177,8 @@ const generateWithGroq = async (
   return normalizeHustles(parseJsonText(text));
 };
 
-const generateWithGemini = async (
-  prompt: string,
-  overrideApiKey?: string
-): Promise<Hustle[] | null> => {
-  const apiKey =
-    overrideApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.API_KEY;
+const generateWithGemini = async (prompt: string): Promise<Hustle[] | null> => {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
   if (!apiKey) {
     return null;
   }
@@ -258,7 +251,7 @@ const fallbackHustles = (interest: string, budget: string, time: string): Hustle
 ];
 
 const getStripeSecretKey = (): string => {
-  const secretKey = process.env.STRIPE_SECRET_KEY || process.env.VITE_STRIPE_SECRET_KEY;
+  const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) {
     throw new Error('STRIPE_SECRET_KEY is not configured in Convex env.');
   }
@@ -625,7 +618,7 @@ const consumeAuthToken = async (
 };
 
 const getGoogleClientId = (): string | null => {
-  const clientId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID;
+  const clientId = process.env.GOOGLE_CLIENT_ID;
   return clientId?.trim() || null;
 };
 
@@ -1744,8 +1737,6 @@ router.route({
         interest?: string;
         budget?: string;
         time?: string;
-        groqApiKey?: string;
-        geminiApiKey?: string;
       };
 
       const interest = body.interest?.trim();
@@ -1760,19 +1751,17 @@ router.route({
       }
 
       const prompt = getPrompt(interest, budget, time);
-      const groqApiKey = body.groqApiKey?.trim();
-      const geminiApiKey = body.geminiApiKey?.trim();
 
       let hustles: Hustle[] | null = null;
       try {
-        hustles = await generateWithGroq(prompt, groqApiKey);
+        hustles = await generateWithGroq(prompt);
       } catch (error) {
         console.error('Groq generation failed:', error);
       }
 
       if (!hustles) {
         try {
-          hustles = await generateWithGemini(prompt, geminiApiKey);
+          hustles = await generateWithGemini(prompt);
         } catch (error) {
           console.error('Gemini generation failed:', error);
         }

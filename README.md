@@ -71,3 +71,14 @@ Stripe webhook URL:
 npm run build
 npm run preview
 ```
+
+## Security
+- Never put provider secret keys in frontend env vars (`VITE_*`).
+- Run a local secret scan before pushing:
+```bash
+npm run security:scan-secrets
+```
+- To also scan git history:
+```bash
+npm run security:scan-secrets:history
+```
